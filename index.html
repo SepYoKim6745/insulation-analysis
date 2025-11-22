@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>절연성능 평가 시스템</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -52,6 +53,22 @@
                 <div id="checklist-section" class="checklist-section">
                 </div>
             </div>
+
+            <!-- 절연성능 평가 기록 목록 -->
+            <div class="history-section">
+                <div class="history-header">
+                    <h3>평가 기록</h3>
+                    <button id="clear-performance-history" class="clear-btn-small">전체 삭제</button>
+                </div>
+                <div id="performance-history-list" class="history-list">
+                    <!-- 기록 목록이 여기에 표시됩니다 -->
+                </div>
+                <!-- 그래프 섹션 -->
+                <div class="chart-section">
+                    <h4>전류-온도 관계 그래프</h4>
+                    <canvas id="performance-chart"></canvas>
+                </div>
+            </div>
         </div>
 
         <!-- 절연저항 열화 패턴 분류 모드 -->
@@ -76,6 +93,22 @@
             <div id="degradation-results" class="results-section" style="display: none;">
                 <h3>분류 결과</h3>
                 <div id="degradation-result-content" class="result-content">
+                </div>
+            </div>
+
+            <!-- 절연저항 열화 패턴 분류 기록 목록 -->
+            <div class="history-section">
+                <div class="history-header">
+                    <h3>평가 기록</h3>
+                    <button id="clear-degradation-history" class="clear-btn-small">전체 삭제</button>
+                </div>
+                <div id="degradation-history-list" class="history-list">
+                    <!-- 기록 목록이 여기에 표시됩니다 -->
+                </div>
+                <!-- 그래프 섹션 -->
+                <div class="chart-section">
+                    <h4>절연저항 추이 그래프</h4>
+                    <canvas id="degradation-chart"></canvas>
                 </div>
             </div>
         </div>
