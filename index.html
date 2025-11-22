@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>절연성능 평가 시스템</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>절연성능 평가 시스템</h1>
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="performance">절연성능 평가</button>
+                <button class="mode-btn" data-mode="degradation">절연저항 열화 패턴 분류</button>
+            </div>
+        </header>
+
+        <!-- 절연성능 평가 모드 -->
+        <div id="performance-mode" class="mode-content active">
+            <h2>절연성능 평가</h2>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="current-input">전류 (I) [A]:</label>
+                    <input type="number" id="current-input" step="0.01" placeholder="전류를 입력하세요">
+                </div>
+                <div class="input-group">
+                    <label for="temperature-input">온도 (T) [℃]:</label>
+                    <input type="number" id="temperature-input" step="0.01" placeholder="온도를 입력하세요">
+                </div>
+                <button id="calculate-performance" class="calculate-btn">평가 계산</button>
+            </div>
+
+            <div id="performance-results" class="results-section" style="display: none;">
+                <h3>정량지표 평가 결과</h3>
+                <div class="indicators-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>항목</th>
+                                <th>계산값</th>
+                                <th>위험도</th>
+                                <th>레벨</th>
+                            </tr>
+                        </thead>
+                        <tbody id="indicators-tbody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>체크리스트</h3>
+                <div id="checklist-section" class="checklist-section">
+                </div>
+            </div>
+        </div>
+
+        <!-- 절연저항 열화 패턴 분류 모드 -->
+        <div id="degradation-mode" class="mode-content">
+            <h2>절연저항 열화 패턴 분류</h2>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="resistance-input">절연저항 [MΩ]:</label>
+                    <input type="number" id="resistance-input" step="0.01" placeholder="절연저항을 입력하세요">
+                </div>
+                <div class="input-group">
+                    <label for="previous-resistance-input">이전 측정값 [MΩ] (선택사항):</label>
+                    <input type="number" id="previous-resistance-input" step="0.01" placeholder="이전 측정값을 입력하세요">
+                </div>
+                <div class="input-group">
+                    <label for="measurement-count-input">측정 횟수 (선택사항):</label>
+                    <input type="number" id="measurement-count-input" step="1" min="1" placeholder="측정 횟수">
+                </div>
+                <button id="calculate-degradation" class="calculate-btn">패턴 분류</button>
+            </div>
+
+            <div id="degradation-results" class="results-section" style="display: none;">
+                <h3>분류 결과</h3>
+                <div id="degradation-result-content" class="result-content">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
