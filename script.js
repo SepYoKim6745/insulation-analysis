@@ -28,11 +28,8 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     });
 });
 
-// 절연성능 평가 계산
-document.getElementById('calculate-performance').addEventListener('click', () => {
-    const current = parseFloat(document.getElementById('current-input').value);
-    const temperature = parseFloat(document.getElementById('temperature-input').value);
-    
+// 절연성능 평가 계산 함수
+function calculatePerformance(current, temperature) {
     if (!current || !temperature) {
         alert('전류와 온도를 모두 입력해주세요.');
         return;
@@ -93,6 +90,126 @@ document.getElementById('calculate-performance').addEventListener('click', () =>
     saveRecord(record);
     // 기록 목록 새로고침
     loadHistory('performance');
+}
+
+// 파일 데이터를 파싱하여 전류-온도 데이터 배열로 반환하는 함수 (절연성능 평가용)
+function parsePerformanceFileData(jsonData) {
+    // 첫 행이 헤더인지 확인
+    const firstRow = jsonData[0] || [];
+    const isHeader = firstRow.length > 0 && (
+        isNaN(firstRow[0]) || 
+        firstRow[0] === '전류' || 
+        firstRow[0] === 'Current' ||
+        firstRow[0] === 'I' ||
+        firstRow[0].toString().toLowerCase().includes('current') ||
+        firstRow[0].toString().toLowerCase().includes('전류')
+    );
+    
+    const startRow = isHeader ? 1 : 0;
+    const data = [];
+
+    for (let i = startRow; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (row && row.length >= 2) {
+            const current = row[0] ? row[0].toString().trim() : '';
+            const temperature = row[1] ? row[1].toString().trim() : '';
+
+            // 유효한 데이터인지 확인
+            if (current && temperature && !isNaN(current) && !isNaN(temperature)) {
+                data.push({
+                    current: parseFloat(current),
+                    temperature: parseFloat(temperature)
+                });
+            }
+        }
+    }
+
+    return data;
+}
+
+// 절연성능 평가 파일 업로드 버튼 클릭 이벤트
+document.getElementById('upload-performance-file').addEventListener('click', async () => {
+    const fileInput = document.getElementById('performance-file-input');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('파일을 선택해주세요.');
+        return;
+    }
+
+    try {
+        let jsonData;
+
+        // 파일 확장자에 따라 다른 방식으로 읽기
+        if (file.name.endsWith('.csv')) {
+            jsonData = await readCSVFile(file);
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            jsonData = await readExcelFile(file);
+        } else {
+            alert('지원하지 않는 파일 형식입니다.\nExcel(.xlsx, .xls) 또는 CSV 파일을 선택해주세요.');
+            return;
+        }
+
+        // 데이터 파싱
+        const parsedData = parsePerformanceFileData(jsonData);
+
+        if (parsedData.length === 0) {
+            alert('파일에서 유효한 데이터를 찾을 수 없습니다.\n형식: 전류(A), 온도(℃)\n첫 번째 열: 전류, 두 번째 열: 온도');
+            return;
+        }
+
+        // 각 데이터에 대해 계산 및 저장
+        parsedData.forEach((item, index) => {
+            // 약간의 지연을 두어 기록이 순차적으로 저장되도록
+            setTimeout(() => {
+                calculatePerformance(item.current, item.temperature);
+            }, index * 100);
+        });
+
+        alert(`${parsedData.length}개의 데이터를 분석했습니다.`);
+
+    } catch (error) {
+        alert(error.message);
+        console.error('파일 읽기 오류:', error);
+    }
+});
+
+// 단일 데이터 추가 버튼 클릭 이벤트 (절연성능 평가)
+document.getElementById('add-single-performance').addEventListener('click', () => {
+    const current = document.getElementById('single-current-input').value.trim();
+    const temperature = document.getElementById('single-temperature-input').value.trim();
+
+    if (!current || !temperature) {
+        alert('전류와 온도를 모두 입력해주세요.');
+        return;
+    }
+
+    if (isNaN(current) || isNaN(temperature)) {
+        alert('올바른 숫자를 입력해주세요.');
+        return;
+    }
+
+    // 선택된 기록들의 데이터 가져오기
+    const selectedData = getSelectedPerformanceRecordsData();
+    
+    // 선택된 기록이 있으면 합쳐서 처리, 없으면 단일 데이터만 처리
+    if (selectedData.length > 0) {
+        // 선택된 데이터와 새 데이터 합치기
+        const combinedData = [...selectedData, {
+            current: parseFloat(current),
+            temperature: parseFloat(temperature)
+        }];
+        
+        // 합쳐진 데이터로 그래프 업데이트
+        updatePerformanceChartWithData(combinedData);
+    }
+
+    // 계산 및 저장
+    calculatePerformance(parseFloat(current), parseFloat(temperature));
+
+    // 입력 필드 초기화
+    document.getElementById('single-current-input').value = '';
+    document.getElementById('single-temperature-input').value = '';
 });
 
 // 전기적 스트레스 위험도 평가
@@ -192,35 +309,34 @@ function getRiskDescriptionR(level) {
     return descriptions[level] || '';
 }
 
-// 체크리스트 표시
-function displayChecklist(riskI, riskT, riskR) {
-    const checklistSection = document.getElementById('checklist-section');
+// 체크리스트 HTML 생성 함수
+function generateChecklistHTML(riskI, riskT, riskR) {
     let html = '';
     
     // 전류 관련 체크리스트 (전기적 스트레스가 L2 이상일 때)
     if (['L2', 'L3', 'L4'].includes(riskI.level)) {
         html += `
-            <div class="checklist-category">
-                <h4>전류 관련 체크리스트</h4>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check1">
-                    <label for="check1">운전 중 정격전류를 초과하는 구간이 존재하는가?</label>
+            <div class="checklist-category" style="margin-bottom: 20px;">
+                <h4 style="color: #667eea; margin-bottom: 10px;">전류 관련 체크리스트</h4>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>운전 중 정격전류를 초과하는 구간이 존재하는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check2">
-                    <label for="check2">부하변동이 크거나, 순간 과전류가 반복되는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>부하변동이 크거나, 순간 과전류가 반복되는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check3">
-                    <label for="check3">교반기에 이물질이 끼인 상태로 운전되는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>교반기에 이물질이 끼인 상태로 운전되는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check4">
-                    <label for="check4">모터 기동방식은 비(非)인버터 인가? (DOL/Y-Δ)</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>모터 기동방식은 비(非)인버터 인가? (DOL/Y-Δ)</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check5">
-                    <label for="check5">S.F(여유계수) 1.0 이하의 모터를 장시간 운전하는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>S.F(여유계수) 1.0 이하의 모터를 장시간 운전하는가?</label>
                 </div>
             </div>
         `;
@@ -229,27 +345,27 @@ function displayChecklist(riskI, riskT, riskR) {
     // 온도 관련 체크리스트 (열적 스트레스가 L2 이상일 때)
     if (['L2', 'L3', 'L4'].includes(riskT.level)) {
         html += `
-            <div class="checklist-category">
-                <h4>온도 관련 체크리스트</h4>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check6">
-                    <label for="check6">전기배선 단자부가 70℃에 근접한 적이 있는가?</label>
+            <div class="checklist-category" style="margin-bottom: 20px;">
+                <h4 style="color: #667eea; margin-bottom: 10px;">온도 관련 체크리스트</h4>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>전기배선 단자부가 70℃에 근접한 적이 있는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check7">
-                    <label for="check7">전기배선 주변온도가 40℃를 초과하는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>전기배선 주변온도가 40℃를 초과하는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check8">
-                    <label for="check8">설치장소가 통풍 또는 발열 불충분 조건인가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>설치장소가 통풍 또는 발열 불충분 조건인가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check9">
-                    <label for="check9">열원(전열, 증기열)이 전기배선에 인접해 있는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>열원(전열, 증기열)이 전기배선에 인접해 있는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check10">
-                    <label for="check10">1회 가동시 수일 이상 연속가동 되는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>1회 가동시 수일 이상 연속가동 되는가?</label>
                 </div>
             </div>
         `;
@@ -258,27 +374,27 @@ function displayChecklist(riskI, riskT, riskR) {
     // 온도반응/열화 관련 체크리스트 (민감도가 L2 이상일 때)
     if (['L2', 'L3', 'L4'].includes(riskR.level)) {
         html += `
-            <div class="checklist-category">
-                <h4>온도반응/열화 관련 체크리스트</h4>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check11">
-                    <label for="check11">동일조건 중 과거보다 온도가 빠르게 상승하는가?</label>
+            <div class="checklist-category" style="margin-bottom: 20px;">
+                <h4 style="color: #667eea; margin-bottom: 10px;">온도반응/열화 관련 체크리스트</h4>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>동일조건 중 과거보다 온도가 빠르게 상승하는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check12">
-                    <label for="check12">전류변화가 작음에도 온도 급상승 패턴이 있는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>전류변화가 작음에도 온도 급상승 패턴이 있는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check13">
-                    <label for="check13">부하증가시 온도가 비선형적으로 급하게 상승하는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>부하증가시 온도가 비선형적으로 급하게 상승하는가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check14">
-                    <label for="check14">동종의 다른 설비보다 온도상승폭이 과도한가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>동종의 다른 설비보다 온도상승폭이 과도한가?</label>
                 </div>
-                <div class="checklist-item">
-                    <input type="checkbox" id="check15">
-                    <label for="check15">온도상승 후 냉각될 때 열이 잔류하는 경향이 있는가?</label>
+                <div class="checklist-item" style="margin-bottom: 8px;">
+                    <input type="checkbox" style="margin-right: 8px;">
+                    <label>온도상승 후 냉각될 때 열이 잔류하는 경향이 있는가?</label>
                 </div>
             </div>
         `;
@@ -288,76 +404,112 @@ function displayChecklist(riskI, riskT, riskR) {
         html = '<p style="text-align: center; color: #28a745; font-weight: 600; padding: 20px;">모든 지표가 정상 범위입니다. 특별한 체크리스트가 필요하지 않습니다.</p>';
     }
     
+    return html;
+}
+
+// 체크리스트 표시
+function displayChecklist(riskI, riskT, riskR) {
+    const checklistSection = document.getElementById('checklist-section');
+    const html = generateChecklistHTML(riskI, riskT, riskR);
     checklistSection.innerHTML = html;
 }
 
-// ==================== 데이터 입력 테이블 관리 ====================
+// ==================== 데이터 입력 관리 ====================
+// (테이블 방식은 제거되고 단일 입력과 파일 업로드로 대체됨)
 
-// 초기 행 추가
-function initializeDataTable() {
-    // 초기에 5개의 빈 행 추가
-    for (let i = 0; i < 5; i++) {
-        addDataRow();
-    }
+// ==================== 파일 업로드 ====================
+
+// Excel/CSV 파일 읽기 함수
+function readExcelFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // 첫 번째 시트 읽기
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+
+                // JSON으로 변환 (헤더 없이 배열 형태로)
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+                resolve(jsonData);
+            } catch (error) {
+                reject(new Error('Excel 파일을 읽는 중 오류가 발생했습니다: ' + error.message));
+            }
+        };
+
+        reader.onerror = function() {
+            reject(new Error('파일을 읽는 중 오류가 발생했습니다.'));
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
 }
 
-// 데이터 행 추가
-function addDataRow(year = '', month = '', resistance = '') {
-    const tbody = document.getElementById('data-input-tbody');
-    const row = document.createElement('tr');
-    const rowId = Date.now() + Math.random();
+// CSV 파일 읽기 함수
+function readCSVFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
 
-    row.innerHTML = `
-        <td><input type="number" class="table-input year-input" placeholder="예: 2020" min="1900" max="2100" value="${year}"></td>
-        <td><input type="number" class="table-input month-input" placeholder="예: 1" min="1" max="12" value="${month}"></td>
-        <td><input type="number" class="table-input resistance-input" placeholder="예: 1200" step="0.01" min="0" value="${resistance}"></td>
-        <td style="text-align: center;">
-            <button class="delete-row-btn" onclick="deleteDataRow(this)">🗑️</button>
-        </td>
-    `;
+        reader.onload = function(e) {
+            try {
+                const text = e.target.result;
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                const jsonData = lines.map(line => {
+                    // 쉼표로 분리하고 공백 제거
+                    return line.split(',').map(part => part.trim());
+                });
 
-    tbody.appendChild(row);
+                resolve(jsonData);
+            } catch (error) {
+                reject(new Error('CSV 파일을 읽는 중 오류가 발생했습니다: ' + error.message));
+            }
+        };
+
+        reader.onerror = function() {
+            reject(new Error('파일을 읽는 중 오류가 발생했습니다.'));
+        };
+
+        reader.readAsText(file, 'UTF-8');
+    });
 }
 
-// 데이터 행 삭제
-function deleteDataRow(button) {
-    const row = button.parentElement.parentElement;
-    row.remove();
-}
-
-// 테이블 전체 삭제
-function clearDataTable() {
-    if (!confirm('모든 입력 데이터를 삭제하시겠습니까?')) {
-        return;
-    }
-    document.getElementById('data-input-tbody').innerHTML = '';
-    initializeDataTable(); // 빈 행 다시 추가
-}
-
-// 테이블에서 데이터 수집
-function collectTableData() {
-    const tbody = document.getElementById('data-input-tbody');
-    const rows = tbody.querySelectorAll('tr');
+// 파일 데이터를 파싱하여 데이터 배열로 반환하는 함수
+function parseFileData(jsonData) {
+    // 첫 행이 헤더인지 확인 (숫자가 아니거나 '연도', 'Year' 등의 키워드가 포함된 경우)
+    const firstRow = jsonData[0] || [];
+    const isHeader = firstRow.length > 0 && (
+        isNaN(firstRow[0]) || 
+        firstRow[0] === '연도' || 
+        firstRow[0] === 'Year' ||
+        firstRow[0].toString().toLowerCase().includes('year') ||
+        firstRow[0].toString().toLowerCase().includes('연도')
+    );
+    
+    const startRow = isHeader ? 1 : 0;
     const data = [];
 
-    rows.forEach(row => {
-        const yearInput = row.querySelector('.year-input');
-        const monthInput = row.querySelector('.month-input');
-        const resistanceInput = row.querySelector('.resistance-input');
+    for (let i = startRow; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (row && row.length >= 3) {
+            const year = row[0] ? row[0].toString().trim() : '';
+            const month = row[1] ? row[1].toString().trim() : '';
+            const resistance = row[2] ? row[2].toString().trim() : '';
 
-        const year = yearInput.value.trim();
-        const month = monthInput.value.trim();
-        const resistance = resistanceInput.value.trim();
-
-        // 모든 필드가 채워진 경우만 추가
-        if (year && month && resistance) {
-            const paddedMonth = month.padStart(2, '0');
-            data.push({
-                date: `${year}-${paddedMonth}`,
-                resistance: parseFloat(resistance)
-            });
+            // 유효한 데이터인지 확인
+            if (year && month && resistance && !isNaN(year) && !isNaN(month) && !isNaN(resistance)) {
+                const paddedMonth = month.padStart(2, '0');
+                data.push({
+                    date: `${year}-${paddedMonth}`,
+                    resistance: parseFloat(resistance)
+                });
+            }
         }
-    });
+    }
 
     // 날짜순 정렬
     data.sort((a, b) => {
@@ -369,16 +521,8 @@ function collectTableData() {
     return data;
 }
 
-// 버튼 이벤트 리스너
-document.getElementById('add-data-row').addEventListener('click', () => {
-    addDataRow();
-});
-
-document.getElementById('clear-data-table').addEventListener('click', clearDataTable);
-
-// ==================== 파일 업로드 ====================
-
-document.getElementById('upload-file').addEventListener('click', () => {
+// 파일 업로드 버튼 클릭 이벤트 (다량 데이터 - 바로 계산)
+document.getElementById('upload-file').addEventListener('click', async () => {
     const fileInput = document.getElementById('file-input');
     const file = fileInput.files[0];
 
@@ -387,106 +531,94 @@ document.getElementById('upload-file').addEventListener('click', () => {
         return;
     }
 
-    const reader = new FileReader();
+    try {
+        let jsonData;
 
-    reader.onload = function(e) {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-
-            // 첫 번째 시트 읽기
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-
-            // JSON으로 변환
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-            // 데이터 파싱 (첫 행이 헤더인 경우 제외)
-            const startRow = jsonData[0] && (isNaN(jsonData[0][0]) || jsonData[0][0] === '연도' || jsonData[0][0] === 'Year') ? 1 : 0;
-
-            // 테이블 초기화
-            document.getElementById('data-input-tbody').innerHTML = '';
-
-            let validDataCount = 0;
-            for (let i = startRow; i < jsonData.length; i++) {
-                const row = jsonData[i];
-                if (row && row.length >= 3) {
-                    const year = row[0] ? row[0].toString().trim() : '';
-                    const month = row[1] ? row[1].toString().trim() : '';
-                    const resistance = row[2] ? row[2].toString().trim() : '';
-
-                    if (year && month && resistance) {
-                        addDataRow(year, month, resistance);
-                        validDataCount++;
-                    }
-                }
-            }
-
-            if (validDataCount === 0) {
-                alert('파일에서 유효한 데이터를 찾을 수 없습니다.\n형식: 연도, 월, 절연저항(MΩ)');
-                initializeDataTable();
-            } else {
-                alert(`${validDataCount}개의 데이터를 불러왔습니다.`);
-            }
-
-        } catch (error) {
-            alert('파일을 읽는 중 오류가 발생했습니다.\n' + error.message);
+        // 파일 확장자에 따라 다른 방식으로 읽기
+        if (file.name.endsWith('.csv')) {
+            jsonData = await readCSVFile(file);
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            jsonData = await readExcelFile(file);
+        } else {
+            alert('지원하지 않는 파일 형식입니다.\nExcel(.xlsx, .xls) 또는 CSV 파일을 선택해주세요.');
+            return;
         }
-    };
 
-    if (file.name.endsWith('.csv')) {
-        reader.readAsText(file);
-        reader.onload = function(e) {
-            try {
-                const text = e.target.result;
-                const lines = text.split('\n');
+        // 데이터 파싱
+        const parsedData = parseFileData(jsonData);
 
-                // 첫 행이 헤더인지 확인
-                const startRow = lines[0] && (lines[0].includes('연도') || lines[0].includes('Year')) ? 1 : 0;
+        if (parsedData.length === 0) {
+            alert('파일에서 유효한 데이터를 찾을 수 없습니다.\n형식: 연도, 월, 절연저항(MΩ)\n첫 번째 열: 연도, 두 번째 열: 월, 세 번째 열: 절연저항');
+            return;
+        }
 
-                // 테이블 초기화
-                document.getElementById('data-input-tbody').innerHTML = '';
+        // 바로 분석 및 저장
+        processDegradationData(parsedData);
 
-                let validDataCount = 0;
-                for (let i = startRow; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-
-                    const parts = line.split(',').map(part => part.trim());
-                    if (parts.length >= 3) {
-                        const year = parts[0];
-                        const month = parts[1];
-                        const resistance = parts[2];
-
-                        if (year && month && resistance) {
-                            addDataRow(year, month, resistance);
-                            validDataCount++;
-                        }
-                    }
-                }
-
-                if (validDataCount === 0) {
-                    alert('파일에서 유효한 데이터를 찾을 수 없습니다.\n형식: 연도, 월, 절연저항(MΩ)');
-                    initializeDataTable();
-                } else {
-                    alert(`${validDataCount}개의 데이터를 불러왔습니다.`);
-                }
-
-            } catch (error) {
-                alert('CSV 파일을 읽는 중 오류가 발생했습니다.\n' + error.message);
-            }
-        };
-    } else {
-        reader.readAsArrayBuffer(file);
+    } catch (error) {
+        alert(error.message);
+        console.error('파일 읽기 오류:', error);
     }
 });
 
-// ==================== 절연저항 열화 패턴 분류 ====================
+// 단일 데이터 추가 버튼 클릭 이벤트
+document.getElementById('add-single-data').addEventListener('click', () => {
+    const year = document.getElementById('single-year-input').value.trim();
+    const month = document.getElementById('single-month-input').value.trim();
+    const resistance = document.getElementById('single-resistance-input').value.trim();
 
-document.getElementById('calculate-degradation').addEventListener('click', () => {
-    // 테이블에서 데이터 수집
-    const parsedData = collectTableData();
+    if (!year || !month || !resistance) {
+        alert('연도, 월, 절연저항을 모두 입력해주세요.');
+        return;
+    }
 
+    if (isNaN(year) || isNaN(month) || isNaN(resistance)) {
+        alert('올바른 숫자를 입력해주세요.');
+        return;
+    }
+
+    const paddedMonth = month.padStart(2, '0');
+    const newData = {
+        date: `${year}-${paddedMonth}`,
+        resistance: parseFloat(resistance)
+    };
+
+    // 선택된 기록들의 데이터 가져오기
+    const selectedData = getSelectedRecordsData();
+    
+    // 선택된 기록이 있으면 합쳐서 처리, 없으면 단일 데이터만 처리
+    let dataToProcess;
+    if (selectedData.length > 0) {
+        // 선택된 데이터와 새 데이터 합치기
+        const combinedData = [...selectedData, newData];
+        
+        // 날짜순 정렬 및 중복 제거 (같은 날짜가 있으면 새 데이터 사용)
+        const dataMap = new Map();
+        combinedData.forEach(item => {
+            dataMap.set(item.date, item);
+        });
+        
+        dataToProcess = Array.from(dataMap.values()).sort((a, b) => {
+            const dateA = new Date(a.date + '-01');
+            const dateB = new Date(b.date + '-01');
+            return dateA - dateB;
+        });
+    } else {
+        // 선택된 기록이 없으면 단일 데이터만
+        dataToProcess = [newData];
+    }
+
+    // 분석 및 저장
+    processDegradationData(dataToProcess);
+
+    // 입력 필드 초기화
+    document.getElementById('single-year-input').value = '';
+    document.getElementById('single-month-input').value = '';
+    document.getElementById('single-resistance-input').value = '';
+});
+
+// 절연저항 데이터 처리 함수 (분석 및 저장)
+function processDegradationData(parsedData) {
     if (parsedData.length === 0) {
         alert('데이터를 입력해주세요.\n최소 1개 이상의 데이터가 필요합니다.');
         return;
@@ -520,7 +652,10 @@ document.getElementById('calculate-degradation').addEventListener('click', () =>
     saveRecord(record);
     // 기록 목록 새로고침
     loadHistory('degradation');
-});
+}
+
+// ==================== 절연저항 열화 패턴 분류 ====================
+// (calculate-degradation 버튼은 제거되었고, 파일 업로드와 단일 입력에서 바로 처리)
 
 // 데이터 파싱 함수
 function parseInsulationData(dataString) {
@@ -595,6 +730,7 @@ function analyzeInsulationPattern(data) {
     let pattern, stage, management, characteristics;
 
     // ① 임계형 (Critical)
+    // 조건: 급격한 저하 (전체 기울기 90% 이상), 임계치 초과 (1.0 MΩ 이하)
     if (belowThreshold || totalDecreaseRate >= 90) {
         pattern = '임계형 (Critical)';
         stage = 'Failure (임계열화)';
@@ -803,7 +939,10 @@ function loadHistory(filter = 'all') {
             return `
                 <div class="history-item" data-id="${record.id}" data-type="${record.type}">
                     <div class="history-item-header">
-                        <span class="history-item-type">절연성능 평가</span>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" class="history-checkbox-performance" data-id="${record.id}" style="width: 20px; height: 20px; cursor: pointer;">
+                            <span class="history-item-type">절연성능 평가</span>
+                        </label>
                         <span class="history-item-date">${dateStr}</span>
                     </div>
                     <div class="history-item-summary">
@@ -828,7 +967,10 @@ function loadHistory(filter = 'all') {
             return `
                 <div class="history-item" data-id="${record.id}" data-type="${record.type}">
                     <div class="history-item-header">
-                        <span class="history-item-type degradation">절연저항 열화 패턴</span>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" class="history-checkbox" data-id="${record.id}" style="width: 20px; height: 20px; cursor: pointer;">
+                            <span class="history-item-type degradation">절연저항 열화 패턴</span>
+                        </label>
                         <span class="history-item-date">${dateStr}</span>
                     </div>
                     <div class="history-item-summary">
@@ -846,18 +988,31 @@ function loadHistory(filter = 'all') {
         }
     }).join('');
     
-    // 그래프 업데이트
+    // degradation 모드인 경우 체크박스 이벤트 리스너 추가
+    if (filter === 'degradation') {
+        // 체크박스에 이벤트 리스너 추가
+        const checkboxes = historyList.querySelectorAll('.history-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectedChart);
+        });
+    }
+    
+    // performance 모드인 경우 체크박스 이벤트 리스너 추가
     if (filter === 'performance') {
-        updatePerformanceChart(history);
-    } else if (filter === 'degradation') {
-        updateDegradationChart(history);
+        // 체크박스에 이벤트 리스너 추가
+        const checkboxes = historyList.querySelectorAll('.history-checkbox-performance');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectedPerformanceChart);
+        });
     }
     
     // 그래프 업데이트
     if (filter === 'performance') {
-        updatePerformanceChart(history);
+        // performance 모드는 체크박스 선택에 따라 그래프가 업데이트되므로 여기서는 업데이트하지 않음
+        // updatePerformanceChart(history);
     } else if (filter === 'degradation') {
-        updateDegradationChart(history);
+        // degradation 모드는 체크박스 선택에 따라 그래프가 업데이트되므로 여기서는 업데이트하지 않음
+        // updateDegradationChart(history);
     }
 }
 
@@ -890,6 +1045,10 @@ function viewHistoryDetail(id, type) {
     if (type === 'performance') {
         const { current, temperature } = record.inputs;
         const { deltaI, deltaT, sensitivity, iCritic, riskI, riskT, riskR } = record.results;
+        
+        // 체크리스트 HTML 생성
+        const checklistHTML = generateChecklistHTML(riskI, riskT, riskR);
+        
         detailHTML += `
             <div class="history-detail-item">
                 <div class="history-detail-label">입력값</div>
@@ -902,6 +1061,12 @@ function viewHistoryDetail(id, type) {
                     <p>전기적 스트레스 (ΔI): ${deltaI.toFixed(3)} - ${riskI.level} (${riskI.name})</p>
                     <p>열적 스트레스 (ΔT): ${deltaT.toFixed(3)} - ${riskT.level} (${riskT.name})</p>
                     <p>온도반응 민감도 (R): ${sensitivity.toFixed(3)} ℃/A - ${riskR.level} (${riskR.name})</p>
+                </div>
+            </div>
+            <div class="history-detail-item">
+                <div class="history-detail-label">체크리스트</div>
+                <div class="history-detail-value">
+                    ${checklistHTML}
                 </div>
             </div>
         `;
@@ -1032,8 +1197,57 @@ window.closeHistoryDetail = closeHistoryDetail;
 let performanceChart = null;
 let degradationChart = null;
 
-// 절연성능 평가 그래프 업데이트
-function updatePerformanceChart(history) {
+// 선택된 기록들의 데이터 가져오기 (절연성능 평가용)
+function getSelectedPerformanceRecordsData() {
+    const checkboxes = document.querySelectorAll('.history-checkbox-performance:checked');
+    
+    if (checkboxes.length === 0) {
+        return [];
+    }
+
+    // 선택된 기록들의 ID 수집
+    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.id));
+    
+    // 기록 가져오기
+    const history = getHistory('performance');
+    
+    // 선택된 기록들의 데이터 수집
+    const selectedData = [];
+    selectedIds.forEach(id => {
+        const record = history.find(r => r.id === id);
+        if (record && record.inputs) {
+            selectedData.push({
+                current: record.inputs.current,
+                temperature: record.inputs.temperature
+            });
+        }
+    });
+
+    return selectedData;
+}
+
+// 선택된 기록들의 그래프 합치기 (절연성능 평가용)
+function updateSelectedPerformanceChart() {
+    const selectedData = getSelectedPerformanceRecordsData();
+    
+    if (selectedData.length === 0) {
+        // 선택된 것이 없으면 그래프 초기화
+        const ctx = document.getElementById('performance-chart');
+        if (ctx && performanceChart) {
+            performanceChart.destroy();
+            performanceChart = null;
+            const canvas = ctx.getContext('2d');
+            canvas.clearRect(0, 0, ctx.width, ctx.height);
+        }
+        return;
+    }
+
+    // 합쳐진 데이터로 그래프 업데이트
+    updatePerformanceChartWithData(selectedData);
+}
+
+// 절연성능 평가 그래프 업데이트 (데이터 배열용)
+function updatePerformanceChartWithData(data) {
     const ctx = document.getElementById('performance-chart');
     if (!ctx) return;
     
@@ -1042,16 +1256,16 @@ function updatePerformanceChart(history) {
         performanceChart.destroy();
     }
     
-    if (history.length === 0) {
+    if (data.length === 0) {
         const canvas = ctx.getContext('2d');
         canvas.clearRect(0, 0, ctx.width, ctx.height);
         return;
     }
     
     // 전류-온도 관계 데이터 준비 (산점도)
-    const scatterData = history.map(record => ({
-        x: record.inputs.current,
-        y: record.inputs.temperature
+    const scatterData = data.map(item => ({
+        x: item.current,
+        y: item.temperature
     }));
     
     // 전류 순으로 정렬 (선 그래프를 위해)
@@ -1136,6 +1350,11 @@ function updateDegradationChartWithData(data) {
     const labels = data.map(d => d.date);
     const resistanceData = data.map(d => d.resistance);
 
+    // 데이터의 최댓값 계산
+    const maxResistance = Math.max(...resistanceData);
+    // y축 최댓값: 데이터 최댓값 + 300을 100 단위로 반올림
+    const yAxisMax = Math.round((maxResistance + 300) / 100) * 100;
+
     degradationChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -1189,7 +1408,9 @@ function updateDegradationChartWithData(data) {
                         display: true,
                         text: '절연저항 (MΩ)'
                     },
-                    beginAtZero: false
+                    min: 0,
+                    max: yAxisMax,
+                    beginAtZero: true
                 }
             }
         }
@@ -1219,14 +1440,113 @@ function updateDegradationChart(history) {
     }
 }
 
+// 선택된 기록들의 데이터 가져오기
+function getSelectedRecordsData() {
+    const checkboxes = document.querySelectorAll('.history-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        return [];
+    }
+
+    // 선택된 기록들의 ID 수집
+    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.id));
+    
+    // 기록 가져오기
+    const history = getHistory('degradation');
+    
+    // 선택된 기록들의 데이터 합치기
+    const mergedData = [];
+    selectedIds.forEach(id => {
+        const record = history.find(r => r.id === id);
+        if (record && record.inputs && record.inputs.data) {
+            record.inputs.data.forEach(item => {
+                mergedData.push({
+                    ...item,
+                    recordId: id
+                });
+            });
+        }
+    });
+
+    // 날짜순 정렬 및 중복 제거 (같은 날짜가 있으면 나중에 추가된 값 사용)
+    const dataMap = new Map();
+    mergedData.forEach(item => {
+        dataMap.set(item.date, item);
+    });
+
+    const sortedData = Array.from(dataMap.values()).sort((a, b) => {
+        const dateA = new Date(a.date + '-01');
+        const dateB = new Date(b.date + '-01');
+        return dateA - dateB;
+    });
+
+    return sortedData;
+}
+
+// 선택된 기록들의 그래프 합치기
+function updateSelectedChart() {
+    const selectedData = getSelectedRecordsData();
+    
+    if (selectedData.length === 0) {
+        // 선택된 것이 없으면 그래프 초기화
+        const ctx = document.getElementById('degradation-chart');
+        if (ctx && degradationChart) {
+            degradationChart.destroy();
+            degradationChart = null;
+            const canvas = ctx.getContext('2d');
+            canvas.clearRect(0, 0, ctx.width, ctx.height);
+        }
+        return;
+    }
+
+    // 합쳐진 데이터로 그래프 업데이트
+    updateDegradationChartWithData(selectedData);
+}
+
+// 선택한 기록 그래프 보기 버튼 클릭 이벤트 (절연저항 열화 패턴)
+document.getElementById('update-chart-selected').addEventListener('click', () => {
+    updateSelectedChart();
+});
+
+// 선택한 기록 그래프 보기 버튼 클릭 이벤트 (절연성능 평가)
+document.getElementById('update-performance-chart-selected').addEventListener('click', () => {
+    updateSelectedPerformanceChart();
+});
+
+// 전체 선택 버튼 클릭 이벤트(절연성능 평가)
+document.getElementById('check-all-select-performance').addEventListener('click', () => {
+    const shouldCheckAll = [...document.querySelectorAll('.history-checkbox-performance')].some(checkbox => !checkbox.checked);
+    [...document.querySelectorAll('.history-checkbox-performance')].forEach(checkbox => {
+        checkbox.checked = shouldCheckAll;
+    });
+
+    if (shouldCheckAll) {
+        document.getElementById('check-all-select-performance').textContent = '전체 선택 해제';
+    } else {
+        document.getElementById('check-all-select-performance').textContent = '전체 선택';
+    }
+});
+
+// 전체 선택 버튼 클릭 이벤트(절연저항 열화 패턴)
+document.getElementById('check-all-select-degradation').addEventListener('click', () => {
+    const shouldCheckAll = [...document.querySelectorAll('.history-checkbox')].some(checkbox => !checkbox.checked); 
+    [...document.querySelectorAll('.history-checkbox')].forEach(checkbox => {
+        checkbox.checked = shouldCheckAll;
+    });
+
+    if (shouldCheckAll) {
+        document.getElementById('check-all-select-degradation').textContent = '전체 선택 해제';
+    } else {
+        document.getElementById('check-all-select-degradation').textContent = '전체 선택';
+    }
+});
+
 // 전역 함수로 등록
-window.deleteDataRow = deleteDataRow;
+window.updateSelectedChart = updateSelectedChart;
+window.updateSelectedPerformanceChart = updateSelectedPerformanceChart;
 
 // 페이지 로드 시 현재 활성화된 모드의 기록 로드
 document.addEventListener('DOMContentLoaded', () => {
     // 초기 로드 시 절연성능 평가 모드가 활성화되어 있으므로 해당 기록 로드
     loadHistory('performance');
-
-    // 데이터 입력 테이블 초기화
-    initializeDataTable();
 });

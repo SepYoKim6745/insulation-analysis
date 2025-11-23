@@ -21,16 +21,32 @@
         <!-- 절연성능 평가 모드 -->
         <div id="performance-mode" class="mode-content active">
             <h2>절연성능 경향 평가</h2>
+
+            <!-- 파일 업로드 섹션 (다량 데이터용) -->
             <div class="input-section">
+                <h3 style="color: #667eea; margin-bottom: 15px;">📁 파일 업로드 (다량 데이터)</h3>
                 <div class="input-group">
-                    <label for="current-input">전류 (I) [A]:</label>
-                    <input type="number" id="current-input" step="0.01" placeholder="전류를 입력하세요">
+                    <label for="performance-file-input">Excel 또는 CSV 파일 업로드:</label>
+                    <input type="file" id="performance-file-input" accept=".xlsx,.xls,.csv" style="padding: 10px;">
+                    <small>Excel(.xlsx, .xls) 또는 CSV 파일을 선택하세요. 첫 번째 열: 전류(A), 두 번째 열: 온도(℃)</small>
                 </div>
-                <div class="input-group">
-                    <label for="temperature-input">온도 (T) [℃]:</label>
-                    <input type="number" id="temperature-input" step="0.01" placeholder="온도를 입력하세요">
+                <button id="upload-performance-file" class="calculate-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">파일 업로드 및 분석</button>
+            </div>
+
+            <!-- 단일 데이터 입력 섹션 -->
+            <div class="input-section" style="margin-top: 30px;">
+                <h3 style="color: #667eea; margin-bottom: 15px;">✏️ 단일 데이터 입력</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
+                    <div class="input-group">
+                        <label for="single-current-input">전류 (I) [A]:</label>
+                        <input type="number" id="single-current-input" step="0.01" placeholder="예: 10.5" min="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="single-temperature-input">온도 (T) [℃]:</label>
+                        <input type="number" id="single-temperature-input" step="0.01" placeholder="예: 65.0" min="0">
+                    </div>
+                    <button id="add-single-performance" class="calculate-btn" style="white-space: nowrap;">추가</button>
                 </div>
-                <button id="calculate-performance" class="calculate-btn">평가 계산</button>
             </div>
 
             <div id="performance-results" class="results-section" style="display: none;">
@@ -59,7 +75,11 @@
             <div class="history-section">
                 <div class="history-header">
                     <h3>평가 기록</h3>
-                    <button id="clear-performance-history" class="clear-btn-small">전체 삭제</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button id="check-all-select-performance" class="secondary-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">전체 선택</button>
+                        <button id="update-performance-chart-selected" class="secondary-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">선택한 기록 그래프 보기</button>
+                        <button id="clear-performance-history" class="clear-btn-small">전체 삭제</button>
+                    </div>
                 </div>
                 <div id="performance-history-list" class="history-list">
                     <!-- 기록 목록이 여기에 표시됩니다 -->
@@ -76,44 +96,35 @@
         <div id="degradation-mode" class="mode-content">
             <h2>절연저항 열화 패턴 분류</h2>
 
-            <!-- 파일 업로드 섹션 -->
+            <!-- 파일 업로드 섹션 (다량 데이터용) -->
             <div class="input-section">
-                <h3 style="color: #667eea; margin-bottom: 15px;">📁 파일 업로드</h3>
+                <h3 style="color: #667eea; margin-bottom: 15px;">📁 파일 업로드 (다량 데이터)</h3>
                 <div class="input-group">
                     <label for="file-input">Excel 또는 CSV 파일 업로드:</label>
                     <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="padding: 10px;">
                     <small>Excel(.xlsx, .xls) 또는 CSV 파일을 선택하세요. 첫 번째 열: 연도, 두 번째 열: 월, 세 번째 열: 절연저항(MΩ)</small>
                 </div>
-                <button id="upload-file" class="calculate-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">파일 업로드</button>
+                <button id="upload-file" class="calculate-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">파일 업로드 및 분석</button>
             </div>
 
-            <!-- 수동 입력 섹션 -->
+            <!-- 단일 데이터 입력 섹션 -->
             <div class="input-section" style="margin-top: 30px;">
-                <h3 style="color: #667eea; margin-bottom: 15px;">✏️ 수동 입력</h3>
-
-                <!-- 데이터 입력 테이블 -->
-                <div id="data-input-table-container">
-                    <table id="data-input-table" style="width: 100%; margin-bottom: 15px;">
-                        <thead>
-                            <tr>
-                                <th style="width: 30%;">연도 (YYYY)</th>
-                                <th style="width: 30%;">월 (MM)</th>
-                                <th style="width: 30%;">절연저항 (MΩ)</th>
-                                <th style="width: 10%;">삭제</th>
-                            </tr>
-                        </thead>
-                        <tbody id="data-input-tbody">
-                            <!-- 데이터 행이 여기에 추가됩니다 -->
-                        </tbody>
-                    </table>
+                <h3 style="color: #667eea; margin-bottom: 15px;">✏️ 단일 데이터 입력</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                    <div class="input-group">
+                        <label for="single-year-input">연도 (YYYY):</label>
+                        <input type="number" id="single-year-input" class="table-input" placeholder="예: 2020" min="1900" max="2100">
+                    </div>
+                    <div class="input-group">
+                        <label for="single-month-input">월 (MM):</label>
+                        <input type="number" id="single-month-input" class="table-input" placeholder="예: 1" min="1" max="12">
+                    </div>
+                    <div class="input-group">
+                        <label for="single-resistance-input">절연저항 (MΩ):</label>
+                        <input type="number" id="single-resistance-input" class="table-input" placeholder="예: 1200" step="0.01" min="0">
+                    </div>
+                    <button id="add-single-data" class="calculate-btn" style="white-space: nowrap;">추가</button>
                 </div>
-
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button id="add-data-row" class="secondary-btn">➕ 행 추가</button>
-                    <button id="clear-data-table" class="secondary-btn" style="background: #dc3545;">🗑️ 전체 삭제</button>
-                </div>
-
-                <button id="calculate-degradation" class="calculate-btn">패턴 분류</button>
             </div>
 
             <div id="degradation-results" class="results-section" style="display: none;">
@@ -126,7 +137,11 @@
             <div class="history-section">
                 <div class="history-header">
                     <h3>평가 기록</h3>
-                    <button id="clear-degradation-history" class="clear-btn-small">전체 삭제</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button id="check-all-select-degradation" class="secondary-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">전체 선택</button>
+                        <button id="update-chart-selected" class="secondary-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">선택한 기록 그래프 보기</button>
+                        <button id="clear-degradation-history" class="clear-btn-small">전체 삭제</button>
+                    </div>
                 </div>
                 <div id="degradation-history-list" class="history-list">
                     <!-- 기록 목록이 여기에 표시됩니다 -->
