@@ -291,178 +291,435 @@ function displayChecklist(riskI, riskT, riskR) {
     checklistSection.innerHTML = html;
 }
 
-// 절연저항 열화 패턴 분류
-document.getElementById('calculate-degradation').addEventListener('click', () => {
-    const resistance = parseFloat(document.getElementById('resistance-input').value);
-    const previousResistance = parseFloat(document.getElementById('previous-resistance-input').value) || null;
-    const measurementCount = parseInt(document.getElementById('measurement-count-input').value) || 1;
-    
-    if (!resistance) {
-        alert('절연저항을 입력해주세요.');
+// ==================== 데이터 입력 테이블 관리 ====================
+
+// 초기 행 추가
+function initializeDataTable() {
+    // 초기에 5개의 빈 행 추가
+    for (let i = 0; i < 5; i++) {
+        addDataRow();
+    }
+}
+
+// 데이터 행 추가
+function addDataRow(year = '', month = '', resistance = '') {
+    const tbody = document.getElementById('data-input-tbody');
+    const row = document.createElement('tr');
+    const rowId = Date.now() + Math.random();
+
+    row.innerHTML = `
+        <td><input type="number" class="table-input year-input" placeholder="예: 2020" min="1900" max="2100" value="${year}"></td>
+        <td><input type="number" class="table-input month-input" placeholder="예: 1" min="1" max="12" value="${month}"></td>
+        <td><input type="number" class="table-input resistance-input" placeholder="예: 1200" step="0.01" min="0" value="${resistance}"></td>
+        <td style="text-align: center;">
+            <button class="delete-row-btn" onclick="deleteDataRow(this)">🗑️</button>
+        </td>
+    `;
+
+    tbody.appendChild(row);
+}
+
+// 데이터 행 삭제
+function deleteDataRow(button) {
+    const row = button.parentElement.parentElement;
+    row.remove();
+}
+
+// 테이블 전체 삭제
+function clearDataTable() {
+    if (!confirm('모든 입력 데이터를 삭제하시겠습니까?')) {
         return;
     }
-    
-    // 패턴 분류
-    const pattern = classifyDegradationPattern(resistance, previousResistance, measurementCount);
-    
+    document.getElementById('data-input-tbody').innerHTML = '';
+    initializeDataTable(); // 빈 행 다시 추가
+}
+
+// 테이블에서 데이터 수집
+function collectTableData() {
+    const tbody = document.getElementById('data-input-tbody');
+    const rows = tbody.querySelectorAll('tr');
+    const data = [];
+
+    rows.forEach(row => {
+        const yearInput = row.querySelector('.year-input');
+        const monthInput = row.querySelector('.month-input');
+        const resistanceInput = row.querySelector('.resistance-input');
+
+        const year = yearInput.value.trim();
+        const month = monthInput.value.trim();
+        const resistance = resistanceInput.value.trim();
+
+        // 모든 필드가 채워진 경우만 추가
+        if (year && month && resistance) {
+            const paddedMonth = month.padStart(2, '0');
+            data.push({
+                date: `${year}-${paddedMonth}`,
+                resistance: parseFloat(resistance)
+            });
+        }
+    });
+
+    // 날짜순 정렬
+    data.sort((a, b) => {
+        const dateA = new Date(a.date + '-01');
+        const dateB = new Date(b.date + '-01');
+        return dateA - dateB;
+    });
+
+    return data;
+}
+
+// 버튼 이벤트 리스너
+document.getElementById('add-data-row').addEventListener('click', () => {
+    addDataRow();
+});
+
+document.getElementById('clear-data-table').addEventListener('click', clearDataTable);
+
+// ==================== 파일 업로드 ====================
+
+document.getElementById('upload-file').addEventListener('click', () => {
+    const fileInput = document.getElementById('file-input');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('파일을 선택해주세요.');
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+
+            // 첫 번째 시트 읽기
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+
+            // JSON으로 변환
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            // 데이터 파싱 (첫 행이 헤더인 경우 제외)
+            const startRow = jsonData[0] && (isNaN(jsonData[0][0]) || jsonData[0][0] === '연도' || jsonData[0][0] === 'Year') ? 1 : 0;
+
+            // 테이블 초기화
+            document.getElementById('data-input-tbody').innerHTML = '';
+
+            let validDataCount = 0;
+            for (let i = startRow; i < jsonData.length; i++) {
+                const row = jsonData[i];
+                if (row && row.length >= 3) {
+                    const year = row[0] ? row[0].toString().trim() : '';
+                    const month = row[1] ? row[1].toString().trim() : '';
+                    const resistance = row[2] ? row[2].toString().trim() : '';
+
+                    if (year && month && resistance) {
+                        addDataRow(year, month, resistance);
+                        validDataCount++;
+                    }
+                }
+            }
+
+            if (validDataCount === 0) {
+                alert('파일에서 유효한 데이터를 찾을 수 없습니다.\n형식: 연도, 월, 절연저항(MΩ)');
+                initializeDataTable();
+            } else {
+                alert(`${validDataCount}개의 데이터를 불러왔습니다.`);
+            }
+
+        } catch (error) {
+            alert('파일을 읽는 중 오류가 발생했습니다.\n' + error.message);
+        }
+    };
+
+    if (file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+        reader.onload = function(e) {
+            try {
+                const text = e.target.result;
+                const lines = text.split('\n');
+
+                // 첫 행이 헤더인지 확인
+                const startRow = lines[0] && (lines[0].includes('연도') || lines[0].includes('Year')) ? 1 : 0;
+
+                // 테이블 초기화
+                document.getElementById('data-input-tbody').innerHTML = '';
+
+                let validDataCount = 0;
+                for (let i = startRow; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const parts = line.split(',').map(part => part.trim());
+                    if (parts.length >= 3) {
+                        const year = parts[0];
+                        const month = parts[1];
+                        const resistance = parts[2];
+
+                        if (year && month && resistance) {
+                            addDataRow(year, month, resistance);
+                            validDataCount++;
+                        }
+                    }
+                }
+
+                if (validDataCount === 0) {
+                    alert('파일에서 유효한 데이터를 찾을 수 없습니다.\n형식: 연도, 월, 절연저항(MΩ)');
+                    initializeDataTable();
+                } else {
+                    alert(`${validDataCount}개의 데이터를 불러왔습니다.`);
+                }
+
+            } catch (error) {
+                alert('CSV 파일을 읽는 중 오류가 발생했습니다.\n' + error.message);
+            }
+        };
+    } else {
+        reader.readAsArrayBuffer(file);
+    }
+});
+
+// ==================== 절연저항 열화 패턴 분류 ====================
+
+document.getElementById('calculate-degradation').addEventListener('click', () => {
+    // 테이블에서 데이터 수집
+    const parsedData = collectTableData();
+
+    if (parsedData.length === 0) {
+        alert('데이터를 입력해주세요.\n최소 1개 이상의 데이터가 필요합니다.');
+        return;
+    }
+
+    // 패턴 분석
+    const analysis = analyzeInsulationPattern(parsedData);
+
     // 결과 표시
-    displayDegradationResults(pattern, resistance, previousResistance, measurementCount);
-    
+    displayDegradationResults(analysis, parsedData);
+
     // 자동으로 기록 저장
-    const degradationRate = previousResistance ? ((previousResistance - resistance) / previousResistance) * 100 : null;
     const record = {
         id: Date.now(),
         type: 'degradation',
         date: new Date().toISOString(),
         inputs: {
-            resistance: resistance,
-            previousResistance: previousResistance || null,
-            measurementCount: measurementCount
+            data: parsedData
         },
         results: {
-            pattern: pattern,
-            degradationRate: degradationRate
+            pattern: analysis.pattern,
+            stage: analysis.stage,
+            management: analysis.management,
+            characteristics: analysis.characteristics,
+            decreaseRate: analysis.decreaseRate,
+            volatility: analysis.volatility,
+            belowThreshold: analysis.belowThreshold
         }
     };
-    
+
     saveRecord(record);
     // 기록 목록 새로고침
     loadHistory('degradation');
 });
 
-// 절연저항 열화 패턴 분류 함수
-function classifyDegradationPattern(resistance, previousResistance, measurementCount) {
-    let degradationRate = 0;
-    let hasRepeatedAnomalies = false;
-    
-    // 이전 측정값이 있는 경우 저하율 계산
-    if (previousResistance && previousResistance > 0) {
-        degradationRate = ((previousResistance - resistance) / previousResistance) * 100;
-    }
-    
-    // 임계형 (Critical): 1MΩ 미만 또는 급격한 저하
-    if (resistance < 1.0) {
-        return {
-            type: '임계형',
-            typeEn: 'Critical',
-            class: 'pattern-critical',
-            characteristics: '급격한 저하 (전체 기울기 90% 이상), 임계치 초과',
-            stage: '임계열화 (Failure)',
-            management: '운전중지, 정밀점검, 배선교체',
-            equipment: '농축Tank #3'
-        };
-    }
-    
-    // 가속형 (Accelerated): 100MΩ 미만이고 급격한 저하
-    if (resistance < 100 && degradationRate >= 70) {
-        return {
-            type: '가속형',
-            typeEn: 'Accelerated',
-            class: 'pattern-accelerated',
-            characteristics: '100MΩ 미달, 급격한 저하 (전체 기울기 70% 이상)',
-            stage: '진전열화 (Propagation)',
-            management: '점검주기 단축 (분기점검)',
-            equipment: '농축Tank #2'
-        };
-    }
-    
-    // 국부형 (Localized): 300MΩ 이상이고 일시적 저하
-    if (resistance >= 300 && previousResistance) {
-        const tempDegradation = degradationRate;
-        if (tempDegradation < 10 && measurementCount >= 2) {
-            return {
-                type: '국부형',
-                typeEn: 'Localized',
-                class: 'pattern-localized',
-                characteristics: '300MΩ 이상, 일시적 저하 (2회, 10% 미만), 특이점 반복',
-                stage: '이상열화 (Anomaly)',
-                management: '경년추이 감시 (반기점검), 300MΩ 미만시 단축점검(분기)',
-                equipment: '농축Tank #5'
-            };
+// 데이터 파싱 함수
+function parseInsulationData(dataString) {
+    const lines = dataString.split('\n').filter(line => line.trim() !== '');
+    const data = [];
+
+    for (const line of lines) {
+        const parts = line.split(',').map(part => part.trim());
+        if (parts.length === 2) {
+            const date = parts[0];
+            const resistance = parseFloat(parts[1]);
+
+            if (date && !isNaN(resistance)) {
+                data.push({ date, resistance });
+            }
         }
     }
-    
-    // 완만형 (Gradual): 완만한 저하 (10~20%)
-    if (previousResistance && degradationRate >= 10 && degradationRate <= 20) {
-        return {
-            type: '완만형',
-            typeEn: 'Gradual',
-            class: 'pattern-gradual',
-            characteristics: '완만한 저하 (10~20%), 특이점 없음',
-            stage: '초기열화 (Initiation)',
-            management: '경년추이 감시 (반기점검)',
-            equipment: '농축Tank #1, #4'
-        };
+
+    // 날짜순 정렬
+    data.sort((a, b) => {
+        const dateA = new Date(a.date + '-01');
+        const dateB = new Date(b.date + '-01');
+        return dateA - dateB;
+    });
+
+    return data;
+}
+
+// 절연저항 패턴 분석 함수
+function analyzeInsulationPattern(data) {
+    if (data.length === 0) {
+        return null;
     }
-    
-    // 안정형 (Stable): 1,000MΩ 이상이고 변동폭 작음
-    if (resistance >= 1000) {
-        return {
-            type: '안정형',
-            typeEn: 'Stable',
-            class: 'pattern-stable',
-            characteristics: '1,000MΩ 이상, 변동폭 ±1%',
-            stage: '건전상태 (Healthy)',
-            management: '정상절연 확인 (연간점검)',
-            equipment: 'Pump (.CIP, 이송, 진공, 순환, 쿨링)'
-        };
+
+    const firstValue = data[0].resistance;
+    const lastValue = data[data.length - 1].resistance;
+    const minValue = Math.min(...data.map(d => d.resistance));
+    const maxValue = Math.max(...data.map(d => d.resistance));
+
+    // 전체 감소율 계산
+    const totalDecreaseRate = ((firstValue - lastValue) / firstValue) * 100;
+
+    // 변동성 계산 (표준편차)
+    const mean = data.reduce((sum, d) => sum + d.resistance, 0) / data.length;
+    const variance = data.reduce((sum, d) => sum + Math.pow(d.resistance - mean, 2), 0) / data.length;
+    const stdDev = Math.sqrt(variance);
+    const volatility = (stdDev / mean) * 100; // 변동계수 (%)
+
+    // 임계치 도달 여부
+    const belowThreshold = lastValue < 1.0;
+    const below100 = lastValue < 100;
+    const above1000 = lastValue >= 1000;
+    const above300 = lastValue >= 300;
+
+    // 일시적 저하 감지 (국부형)
+    let temporaryDrops = 0;
+    for (let i = 1; i < data.length - 1; i++) {
+        const prevResistance = data[i - 1].resistance;
+        const currResistance = data[i].resistance;
+        const nextResistance = data[i + 1].resistance;
+
+        // 일시적 저하: 이전보다 떨어졌다가 다시 회복
+        const drop = ((prevResistance - currResistance) / prevResistance) * 100;
+        const recovery = ((nextResistance - currResistance) / currResistance) * 100;
+
+        if (drop > 0 && drop < 10 && recovery > 0) {
+            temporaryDrops++;
+        }
     }
-    
-    // 기본값: 완만형으로 분류
+
+    // 패턴 분류 로직
+    let pattern, stage, management, characteristics;
+
+    // ① 임계형 (Critical)
+    if (belowThreshold || totalDecreaseRate >= 90) {
+        pattern = '임계형 (Critical)';
+        stage = 'Failure (임계열화)';
+        management = '운전중지, 정밀점검, 배선 교체';
+        characteristics = '급격한 저하 (전체 기간 중 90% 이상 감소), 절연저항이 임계치(1 MΩ) 이하';
+    }
+    // ② 가속형 (Accelerated)
+    else if (below100 && totalDecreaseRate >= 70) {
+        pattern = '가속형 (Accelerated)';
+        stage = 'Propagation (진전열화)';
+        management = '점검주기 단축 (분기점검)';
+        characteristics = '100 MΩ 미만 도달, 급격한 저하 (전체 기간의 70% 이상 감소)';
+    }
+    // ③ 완만형 (Gradual)
+    else if (totalDecreaseRate >= 10 && totalDecreaseRate <= 20 && temporaryDrops === 0) {
+        pattern = '완만형 (Gradual)';
+        stage = 'Initiation (초기열화)';
+        management = '경년추이 감시 (반기점검)';
+        characteristics = '10~20% 수준의 완만한 저하, 특이점 없음';
+    }
+    // ④ 국부형 (Localised)
+    else if (above300 && temporaryDrops >= 2) {
+        pattern = '국부형 (Localised)';
+        stage = 'Anomaly (이상열화)';
+        management = '경년추이 감시, 300MΩ 미만 시 단축점검 (분기)';
+        characteristics = `전체 수치는 양호하나 일시적 저하 반복 (${temporaryDrops}회, 각 저하 폭 10% 미만)`;
+    }
+    // ⑤ 안정형 (Stable)
+    else if (above1000 && volatility <= 1.0) {
+        pattern = '안정형 (Stable)';
+        stage = 'Healthy (건전상태)';
+        management = '정기 절연 확인 (연 1회)';
+        characteristics = '1000 MΩ 이상, 변동폭 ±1% 이내';
+    }
+    // 기타 (완만형으로 분류)
+    else {
+        pattern = '완만형 (Gradual)';
+        stage = 'Initiation (초기열화)';
+        management = '경년추이 감시 (반기점검)';
+        characteristics = '완만한 저하 또는 안정 상태';
+    }
+
     return {
-        type: '완만형',
-        typeEn: 'Gradual',
-        class: 'pattern-gradual',
-        characteristics: '완만한 저하 또는 안정 상태',
-        stage: '초기열화 (Initiation)',
-        management: '경년추이 감시 (반기점검)',
-        equipment: '농축Tank #1, #4'
+        pattern,
+        stage,
+        management,
+        characteristics,
+        decreaseRate: totalDecreaseRate,
+        volatility,
+        belowThreshold,
+        firstValue,
+        lastValue,
+        minValue,
+        maxValue,
+        temporaryDrops
     };
 }
 
 // 절연저항 열화 패턴 분류 결과 표시
-function displayDegradationResults(pattern, resistance, previousResistance, measurementCount) {
+function displayDegradationResults(analysis, data) {
     const resultContent = document.getElementById('degradation-result-content');
-    
-    let degradationInfo = '';
-    if (previousResistance) {
-        const degradationRate = ((previousResistance - resistance) / previousResistance) * 100;
-        degradationInfo = `
-            <div class="result-item">
-                <h4>저하율 분석</h4>
-                <p><strong>이전 측정값:</strong> ${previousResistance.toFixed(2)} MΩ</p>
-                <p><strong>현재 측정값:</strong> ${resistance.toFixed(2)} MΩ</p>
-                <p><strong>저하율:</strong> ${degradationRate.toFixed(2)}%</p>
-            </div>
-        `;
-    }
-    
+
+    // 패턴별 클래스 설정
+    let patternClass = 'pattern-gradual';
+    if (analysis.pattern.includes('임계형')) patternClass = 'pattern-critical';
+    else if (analysis.pattern.includes('가속형')) patternClass = 'pattern-accelerated';
+    else if (analysis.pattern.includes('국부형')) patternClass = 'pattern-localized';
+    else if (analysis.pattern.includes('안정형')) patternClass = 'pattern-stable';
+
     resultContent.innerHTML = `
         <div class="result-item">
-            <h4>분류된 패턴</h4>
-            <p><span class="pattern-type ${pattern.class}">${pattern.type} (${pattern.typeEn})</span></p>
-            <p><strong>설비 예시:</strong> ${pattern.equipment}</p>
+            <h4>📊 패턴 특성 분석</h4>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 8px;"><strong>전체 감소폭</strong></td>
+                    <td style="padding: 8px;">${analysis.decreaseRate.toFixed(2)}%</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 8px;"><strong>변동성 (변동계수)</strong></td>
+                    <td style="padding: 8px;">${analysis.volatility.toFixed(2)}%</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 8px;"><strong>임계치 도달 여부</strong></td>
+                    <td style="padding: 8px;">${analysis.belowThreshold ? '예 (1 MΩ 이하)' : '아니오'}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 8px;"><strong>초기값</strong></td>
+                    <td style="padding: 8px;">${analysis.firstValue.toFixed(2)} MΩ</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 8px;"><strong>최종값</strong></td>
+                    <td style="padding: 8px;">${analysis.lastValue.toFixed(2)} MΩ</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 8px;"><strong>최소값</strong></td>
+                    <td style="padding: 8px;">${analysis.minValue.toFixed(2)} MΩ</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px;"><strong>최대값</strong></td>
+                    <td style="padding: 8px;">${analysis.maxValue.toFixed(2)} MΩ</td>
+                </tr>
+            </table>
         </div>
+
         <div class="result-item">
-            <h4>패턴 특성</h4>
-            <p>${pattern.characteristics}</p>
+            <h4>🏷️ 최종 열화 패턴 유형</h4>
+            <p><span class="pattern-type ${patternClass}" style="font-size: 1.2em; padding: 8px 16px;">${analysis.pattern}</span></p>
+            <p style="margin-top: 10px;"><strong>특성:</strong> ${analysis.characteristics}</p>
         </div>
+
         <div class="result-item">
-            <h4>열화 단계</h4>
-            <p><strong>${pattern.stage}</strong></p>
+            <h4>📈 열화 단계 (Heat Stage)</h4>
+            <p style="font-size: 1.1em; color: #2c3e50;"><strong>${analysis.stage}</strong></p>
         </div>
+
         <div class="result-item">
-            <h4>관리 방향</h4>
-            <p><strong>${pattern.management}</strong></p>
-        </div>
-        ${degradationInfo}
-        <div class="result-item">
-            <h4>현재 절연저항</h4>
-            <p><strong>${resistance.toFixed(2)} MΩ</strong></p>
+            <h4>🔧 관리 방향 (Management Action)</h4>
+            <p style="font-size: 1.1em; color: #e74c3c;"><strong>${analysis.management}</strong></p>
         </div>
     `;
-    
+
     document.getElementById('degradation-results').style.display = 'block';
+
+    // 그래프 업데이트
+    updateDegradationChartWithData(data);
 }
 
 // ==================== 기록 저장/조회 기능 ====================
@@ -560,8 +817,14 @@ function loadHistory(filter = 'all') {
                 </div>
             `;
         } else {
-            const { resistance, previousResistance } = record.inputs;
-            const { pattern, degradationRate } = record.results;
+            const { data } = record.inputs;
+            const { pattern, stage, decreaseRate } = record.results;
+
+            // 데이터 요약
+            const dataCount = data ? data.length : 0;
+            const firstValue = data && data.length > 0 ? data[0].resistance : 0;
+            const lastValue = data && data.length > 0 ? data[data.length - 1].resistance : 0;
+
             return `
                 <div class="history-item" data-id="${record.id}" data-type="${record.type}">
                     <div class="history-item-header">
@@ -569,9 +832,10 @@ function loadHistory(filter = 'all') {
                         <span class="history-item-date">${dateStr}</span>
                     </div>
                     <div class="history-item-summary">
-                        <p><strong>입력:</strong> 절연저항 ${resistance.toFixed(2)} MΩ${previousResistance ? `, 이전값 ${previousResistance.toFixed(2)} MΩ` : ''}</p>
-                        <p><strong>패턴:</strong> ${pattern.type} (${pattern.typeEn}) - ${pattern.stage}</p>
-                        ${degradationRate !== null ? `<p><strong>저하율:</strong> ${degradationRate.toFixed(2)}%</p>` : ''}
+                        <p><strong>데이터 수:</strong> ${dataCount}개 측정</p>
+                        <p><strong>절연저항 범위:</strong> ${firstValue.toFixed(2)} MΩ → ${lastValue.toFixed(2)} MΩ</p>
+                        <p><strong>패턴:</strong> ${pattern} - ${stage}</p>
+                        <p><strong>감소율:</strong> ${decreaseRate !== null && decreaseRate !== undefined ? decreaseRate.toFixed(2) + '%' : 'N/A'}</p>
                     </div>
                     <div class="history-item-actions">
                         <button class="btn-view" onclick="viewHistoryDetail(${record.id}, '${record.type}')">상세보기</button>
@@ -642,26 +906,42 @@ function viewHistoryDetail(id, type) {
             </div>
         `;
     } else {
-        const { resistance, previousResistance, measurementCount } = record.inputs;
-        const { pattern, degradationRate } = record.results;
+        const { data } = record.inputs;
+        const { pattern, stage, management, characteristics, decreaseRate, volatility, belowThreshold } = record.results;
+
+        // 데이터 테이블 생성
+        let dataTable = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+        dataTable += '<thead><tr><th style="border: 1px solid #ddd; padding: 8px;">연도+월</th><th style="border: 1px solid #ddd; padding: 8px;">절연저항 (MΩ)</th></tr></thead>';
+        dataTable += '<tbody>';
+        if (data && data.length > 0) {
+            data.forEach(d => {
+                dataTable += `<tr><td style="border: 1px solid #ddd; padding: 8px;">${d.date}</td><td style="border: 1px solid #ddd; padding: 8px;">${d.resistance.toFixed(2)}</td></tr>`;
+            });
+        }
+        dataTable += '</tbody></table>';
+
         detailHTML += `
             <div class="history-detail-item">
-                <div class="history-detail-label">입력값</div>
+                <div class="history-detail-label">입력 데이터</div>
                 <div class="history-detail-value">
-                    <p>절연저항: ${resistance.toFixed(2)} MΩ</p>
-                    ${previousResistance ? `<p>이전 측정값: ${previousResistance.toFixed(2)} MΩ</p>` : ''}
-                    <p>측정 횟수: ${measurementCount}</p>
+                    ${dataTable}
+                </div>
+            </div>
+            <div class="history-detail-item">
+                <div class="history-detail-label">분석 결과</div>
+                <div class="history-detail-value">
+                    <p><strong>전체 감소폭:</strong> ${decreaseRate !== null && decreaseRate !== undefined ? decreaseRate.toFixed(2) + '%' : 'N/A'}</p>
+                    <p><strong>변동성:</strong> ${volatility !== null && volatility !== undefined ? volatility.toFixed(2) + '%' : 'N/A'}</p>
+                    <p><strong>임계치 도달:</strong> ${belowThreshold ? '예 (1 MΩ 이하)' : '아니오'}</p>
                 </div>
             </div>
             <div class="history-detail-item">
                 <div class="history-detail-label">분류 결과</div>
                 <div class="history-detail-value">
-                    <p>패턴: ${pattern.type} (${pattern.typeEn})</p>
-                    <p>특성: ${pattern.characteristics}</p>
-                    <p>열화 단계: ${pattern.stage}</p>
-                    <p>관리 방향: ${pattern.management}</p>
-                    <p>설비 예시: ${pattern.equipment}</p>
-                    ${degradationRate !== null ? `<p>저하율: ${degradationRate.toFixed(2)}%</p>` : ''}
+                    <p><strong>패턴:</strong> ${pattern}</p>
+                    <p><strong>특성:</strong> ${characteristics}</p>
+                    <p><strong>열화 단계:</strong> ${stage}</p>
+                    <p><strong>관리 방향:</strong> ${management}</p>
                 </div>
             </div>
         `;
@@ -837,48 +1117,31 @@ function updatePerformanceChart(history) {
     });
 }
 
-// 절연저항 열화 패턴 분류 그래프 업데이트
-function updateDegradationChart(history) {
+// 절연저항 열화 패턴 분류 그래프 업데이트 (현재 입력 데이터용)
+function updateDegradationChartWithData(data) {
     const ctx = document.getElementById('degradation-chart');
     if (!ctx) return;
-    
+
     // 기존 차트가 있으면 제거
     if (degradationChart) {
         degradationChart.destroy();
     }
-    
-    if (history.length === 0) {
+
+    if (data.length === 0) {
         const canvas = ctx.getContext('2d');
         canvas.clearRect(0, 0, ctx.width, ctx.height);
         return;
     }
-    
-    // 날짜순 정렬
-    const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    // 년도 기준으로 그룹화 (같은 년도의 평균값 사용)
-    const yearData = {};
-    sortedHistory.forEach(record => {
-        const date = new Date(record.date);
-        const year = date.getFullYear();
-        if (!yearData[year]) {
-            yearData[year] = [];
-        }
-        yearData[year].push(record.inputs.resistance);
-    });
-    
-    const years = Object.keys(yearData).sort((a, b) => a - b);
-    const resistanceData = years.map(year => {
-        const values = yearData[year];
-        return values.reduce((sum, val) => sum + val, 0) / values.length; // 평균값
-    });
-    
+
+    const labels = data.map(d => d.date);
+    const resistanceData = data.map(d => d.resistance);
+
     degradationChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: years,
+            labels: labels,
             datasets: [{
-                label: 'Insulation Resistance (MΩ)',
+                label: '절연저항 (MΩ)',
                 data: resistanceData,
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
@@ -886,6 +1149,7 @@ function updateDegradationChart(history) {
                 fill: true,
                 pointRadius: 6,
                 pointHoverRadius: 8,
+                borderWidth: 2
             }]
         },
         options: {
@@ -901,7 +1165,14 @@ function updateDegradationChart(history) {
                 },
                 title: {
                     display: true,
-                    text: '절연저항 추이 (년도별)'
+                    text: '절연저항 추이 (연도+월)'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `절연저항: ${context.parsed.y.toFixed(2)} MΩ`;
+                        }
+                    }
                 }
             },
             scales: {
@@ -909,23 +1180,53 @@ function updateDegradationChart(history) {
                     display: true,
                     title: {
                         display: true,
-                        text: 'Year'
+                        text: '연도+월 (YYYY-MM)'
                     }
                 },
                 y: {
                     display: true,
                     title: {
                         display: true,
-                        text: 'Insulation Resistance (MΩ)'
-                    }
+                        text: '절연저항 (MΩ)'
+                    },
+                    beginAtZero: false
                 }
             }
         }
     });
 }
 
+// 절연저항 열화 패턴 분류 그래프 업데이트 (기록용)
+function updateDegradationChart(history) {
+    const ctx = document.getElementById('degradation-chart');
+    if (!ctx) return;
+
+    // 기존 차트가 있으면 제거
+    if (degradationChart) {
+        degradationChart.destroy();
+    }
+
+    if (history.length === 0) {
+        const canvas = ctx.getContext('2d');
+        canvas.clearRect(0, 0, ctx.width, ctx.height);
+        return;
+    }
+
+    // 가장 최근 기록 사용
+    const latestRecord = history[0];
+    if (latestRecord.inputs.data) {
+        updateDegradationChartWithData(latestRecord.inputs.data);
+    }
+}
+
+// 전역 함수로 등록
+window.deleteDataRow = deleteDataRow;
+
 // 페이지 로드 시 현재 활성화된 모드의 기록 로드
 document.addEventListener('DOMContentLoaded', () => {
     // 초기 로드 시 절연성능 평가 모드가 활성화되어 있으므로 해당 기록 로드
     loadHistory('performance');
+
+    // 데이터 입력 테이블 초기화
+    initializeDataTable();
 });

@@ -6,6 +6,7 @@
     <title>절연성능 평가 시스템</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -74,19 +75,44 @@
         <!-- 절연저항 열화 패턴 분류 모드 -->
         <div id="degradation-mode" class="mode-content">
             <h2>절연저항 열화 패턴 분류</h2>
+
+            <!-- 파일 업로드 섹션 -->
             <div class="input-section">
+                <h3 style="color: #667eea; margin-bottom: 15px;">📁 파일 업로드</h3>
                 <div class="input-group">
-                    <label for="resistance-input">절연저항 [MΩ]:</label>
-                    <input type="number" id="resistance-input" step="0.01" placeholder="절연저항을 입력하세요">
+                    <label for="file-input">Excel 또는 CSV 파일 업로드:</label>
+                    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="padding: 10px;">
+                    <small>Excel(.xlsx, .xls) 또는 CSV 파일을 선택하세요. 첫 번째 열: 연도, 두 번째 열: 월, 세 번째 열: 절연저항(MΩ)</small>
                 </div>
-                <div class="input-group">
-                    <label for="previous-resistance-input">이전 측정값 [MΩ] (선택사항):</label>
-                    <input type="number" id="previous-resistance-input" step="0.01" placeholder="이전 측정값을 입력하세요">
+                <button id="upload-file" class="calculate-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">파일 업로드</button>
+            </div>
+
+            <!-- 수동 입력 섹션 -->
+            <div class="input-section" style="margin-top: 30px;">
+                <h3 style="color: #667eea; margin-bottom: 15px;">✏️ 수동 입력</h3>
+
+                <!-- 데이터 입력 테이블 -->
+                <div id="data-input-table-container">
+                    <table id="data-input-table" style="width: 100%; margin-bottom: 15px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%;">연도 (YYYY)</th>
+                                <th style="width: 30%;">월 (MM)</th>
+                                <th style="width: 30%;">절연저항 (MΩ)</th>
+                                <th style="width: 10%;">삭제</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-input-tbody">
+                            <!-- 데이터 행이 여기에 추가됩니다 -->
+                        </tbody>
+                    </table>
                 </div>
-                <div class="input-group">
-                    <label for="measurement-count-input">측정 횟수 (선택사항):</label>
-                    <input type="number" id="measurement-count-input" step="1" min="1" placeholder="측정 횟수">
+
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button id="add-data-row" class="secondary-btn">➕ 행 추가</button>
+                    <button id="clear-data-table" class="secondary-btn" style="background: #dc3545;">🗑️ 전체 삭제</button>
                 </div>
+
                 <button id="calculate-degradation" class="calculate-btn">패턴 분류</button>
             </div>
 
