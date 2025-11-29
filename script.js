@@ -324,15 +324,18 @@ document.getElementById('calculate-performance').addEventListener('click', () =>
         return;
     }
 
+    // 배열 복사 (setTimeout 때문에 초기화되기 전에 복사 필요)
+    const dataToSave = [...performanceTimeSeriesData];
+
     // 각 시계열 데이터를 개별 기록으로 저장
-    performanceTimeSeriesData.forEach((data, index) => {
+    dataToSave.forEach((data, index) => {
         setTimeout(() => {
             if (index === 0) {
                 // 첫 번째 데이터: 이전 데이터 없음
                 calculatePerformance(data.current, data.temperature, null);
             } else {
                 // 두 번째 이후: 이전 데이터와 현재 데이터 사용
-                const prevData = performanceTimeSeriesData[index - 1];
+                const prevData = dataToSave[index - 1];
                 const timeSeriesDataForCalc = [
                     { time: prevData.time, current: prevData.current, temperature: prevData.temperature },
                     { time: data.time, current: data.current, temperature: data.temperature }
