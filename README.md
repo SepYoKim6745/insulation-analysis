@@ -1,10 +1,10 @@
-# 절연성능 평가 시스템
+# 절연성능 관리 시스템
 
 절연성능 평가 및 절연저항 열화 패턴 분류를 위한 웹 기반 분석 시스템입니다.
 
 ## 시스템 개요
 
-본 시스템은 전기 설비의 절연성능을 정량적으로 평가하고, 절연저항의 열화 패턴을 분류하여 예측 기반 유지보수를 지원하는 웹 애플리케이션입니다. 2가지 평가 모드를 제공하며, 데이터 시각화와 이력 관리 기능을 포함합니다.
+본 시스템은 전기 설비의 절연성능을 정량적으로 평가하고, 절연저항의 열화 패턴을 분류하여 예측 기반 유지보수를 지원하는 웹 애플리케이션입니다. 2가지 평가 모드를 제공하며, 데이터 시각화, 이력 관리, 그리고 위험도 기반 체크리스트 기능을 포함합니다.
 
 ---
 
@@ -17,27 +17,37 @@
 #### 입력
 - **전류(I)**: 5분 간격 측정값 [A]
 - **온도(T)**: 5분 간격 측정값 [℃]
-- **입력 방식**: 단일 입력 또는 Excel/CSV 파일 업로드
+- **입력 방식**:
+  - 단일 데이터 입력 (시계열 방식, 최소 2회 이상)
+  - Excel/CSV 파일 업로드 (다량 데이터)
 
 #### 계산 지표
 1. **전기적 스트레스 (S_I)**
    - 정의: S_I = I_max / I_critic
-   - I_max: 측정 전류의 최댓값
+   - I_max: 측정 전류의 최댓값 (마지막 측정값)
    - I_critic: 허용온도(70℃) 도달 시 임계전류
 
 2. **열적 스트레스 (S_T)**
    - 정의: S_T = T_max / T_critic
-   - T_max: 측정 온도의 최댓값
+   - T_max: 측정 온도의 최댓값 (마지막 측정값)
    - T_critic: 허용온도 (70℃)
 
 3. **온도반응 민감도 (R)**
    - 정의: R = (T_n2 - T_n1) / (I_n2 - I_n1)
-   - 연속 측정값 간 온도변화율
+   - 마지막 2개 측정값 간 온도변화율
 
 #### 출력
-- 각 지표별 위험도 4단계 평가 (L1~L4)
-- 위험도 수준별 점검 체크리스트
-- 전류-온도 관계 산점도 그래프
+- **위험도 평가**: 각 지표별 4단계 레벨 (L1~L4)
+  - L1 (정상), L2 (주의), L3 (경계), L4 (위험)
+- **위험도별 체크리스트**: L2 이상일 때 자동 표시
+  - 전기적 스트레스 점검지표 (5개 항목)
+  - 열적 스트레스 점검지표 (5개 항목)
+  - 발열민감도 점검지표 (5개 항목)
+- **가중치 기반 점검 결과**:
+  - 점검지표별 점수 (0~10점)
+  - 총점 및 상태 평가 (주의/경계/위험)
+  - 관리방안 자동 제시
+- **전류-온도 관계 그래프**: 누적 데이터 시각화
 
 ### 2. 절연저항 패턴평가 (Degradation Pattern Classification)
 
@@ -46,19 +56,78 @@
 #### 입력
 - **연도+월**: YYYY-MM 형식
 - **절연저항**: 측정값 [MΩ]
-- **입력 방식**: 단일 입력 또는 Excel/CSV 파일 업로드
+- **입력 방식**:
+  - 단일 데이터 입력 (이전 기록과 자동 병합 가능)
+  - Excel/CSV 파일 업로드
 
 #### 분류 패턴
 1. **임계형 (Critical)**: 급격한 저하, 1MΩ 이하 도달
+   - 열화 단계: Failure (임계열화)
+   - 관리 방향: 운전중지, 정밀점검, 배선 교체
+
 2. **가속형 (Accelerated)**: 100MΩ 미만, 70% 이상 감소
+   - 열화 단계: Propagation (진전열화)
+   - 관리 방향: 점검주기 단축 (분기점검)
+
 3. **완만형 (Gradual)**: 10~20% 완만한 저하
+   - 열화 단계: Initiation (초기열화)
+   - 관리 방향: 경년추이 감시 (반기점검)
+
 4. **국부형 (Localized)**: 일시적 저하 반복
+   - 열화 단계: Anomaly (이상열화)
+   - 관리 방향: 경년추이 감시, 300MΩ 미만 시 단축점검
+
 5. **안정형 (Stable)**: 1000MΩ 이상, 변동폭 ±1% 이내
+   - 열화 단계: Healthy (건전상태)
+   - 관리 방향: 정기 절연 확인 (연 1회)
 
 #### 출력
-- 열화 단계 (Healthy/Initiation/Anomaly/Propagation/Failure)
-- 권장 관리 방향 및 점검 주기
+- 패턴 특성 분석 (감소폭, 변동성, 임계치 도달 여부)
+- 열화 단계 및 관리 방향
 - 절연저항 시계열 그래프
+
+---
+
+## 체크리스트 시스템
+
+### 가중치 기반 평가
+
+각 점검 항목은 중요도에 따라 가중치(1~3점)가 부여됩니다.
+
+#### 전기적 스트레스 점검지표 (총 10점)
+| 점검 항목 | 가중치 |
+|----------|--------|
+| 운전 중 정격전류를 초과하는 구간이 존재하는가? | 2점 |
+| 부하변동이 크거나, 순간 과전류가 반복되는가? | 3점 |
+| 교반기에 이물질이 끼인 상태로 운전되는가? | 2점 |
+| 모터 기동방식은 비(非)인버터 인가? (DOL/Y-Δ) | 1점 |
+| S.F(여유계수) 1.0 이하의 모터를 장시간 운전하는가? | 2점 |
+
+#### 열적 스트레스 점검지표 (총 10점)
+| 점검 항목 | 가중치 |
+|----------|--------|
+| 전기배선 단자부가 70℃에 근접한 적이 있는가? | 3점 |
+| 전기배선 주변온도가 40℃를 초과하는가? | 2점 |
+| 설치장소가 통풍 또는 발열 불충분 조건인가? | 1점 |
+| 열원(전열, 증기열)이 전기배선에 인접해 있는가? | 2점 |
+| 1회 가동시 수일 이상 연속가동 되는가? | 2점 |
+
+#### 발열민감도 점검지표 (총 10점)
+| 점검 항목 | 가중치 |
+|----------|--------|
+| 동일조건 중 과거보다 온도가 빠르게 상승하는가? | 1점 |
+| 전류변화가 작음에도 온도 급상승 패턴이 있는가? | 3점 |
+| 부하증가시 온도가 비선형적으로 급하게 상승하는가? | 3점 |
+| 동종의 다른 설비보다 온도상승폭이 과도한가? | 2점 |
+| 온도상승 후 냉각될 때 열이 잔류하는 경향이 있는가? | 1점 |
+
+### 상태 평가 기준
+
+| 총점 | 상태 | 관리방안 |
+|------|------|----------|
+| 1~2점 | 주의 | 점검주기 단축필요 |
+| 3~4점 | 경계 | 절연저항 패턴관리 필요 |
+| 5점 이상 | 위험 | 가동중지, 정밀점검 필요 |
 
 ---
 
@@ -137,7 +206,44 @@ function evaluateRiskR(sensitivity) {
 
 ---
 
-### 3. 절연저항 패턴 분석 - 열화 분류 ([script.js:835-938](script.js#L835-L938))
+### 3. 체크리스트 - 가중치 기반 평가 ([script.js:460-635](script.js#L460-L635))
+
+```javascript
+// 체크리스트 HTML 생성 (L2 이상일 때만 표시)
+function generateChecklistHTML(riskI, riskT, riskR) {
+    // 각 카테고리별로 체크리스트 항목 생성
+    // data-category, data-weight 속성 부여
+}
+
+// 카테고리별 점수 계산
+function calculateCategoryScore(category) {
+    const checkboxes = document.querySelectorAll(
+        `.checklist-checkbox[data-category="${category}"]:checked`
+    );
+    let score = 0;
+    checkboxes.forEach(checkbox => {
+        score += parseInt(checkbox.dataset.weight);
+    });
+    return score;
+}
+
+// 점검 결과 평가
+function evaluateChecklistResult(score) {
+    if (score >= 1 && score <= 2) {
+        return { status: '주의', management: '점검주기 단축필요' };
+    } else if (score >= 3 && score <= 4) {
+        return { status: '경계', management: '절연저항 패턴관리 필요' };
+    } else if (score >= 5) {
+        return { status: '위험', management: '가동중지, 정밀점검 필요' };
+    }
+}
+```
+
+**설명**: 위험도가 L2 이상인 지표에 대해 체크리스트를 표시하고, 사용자가 체크한 항목의 가중치를 합산하여 상태를 평가합니다. 실시간으로 점검지표별 점수와 총점, 관리방안을 업데이트합니다.
+
+---
+
+### 4. 절연저항 패턴 분석 - 열화 분류 ([script.js:835-938](script.js#L835-L938))
 
 ```javascript
 function analyzeInsulationPattern(data) {
@@ -162,11 +268,6 @@ function analyzeInsulationPattern(data) {
         stage = 'Propagation (진전열화)';
         management = '점검주기 단축 (분기점검)';
     }
-    else if (totalDecreaseRate >= 10 && totalDecreaseRate <= 20 && temporaryDrops === 0) {
-        pattern = '완만형 (Gradual)';
-        stage = 'Initiation (초기열화)';
-        management = '경년추이 감시 (반기점검)';
-    }
     // ... 추가 분류 로직
 }
 ```
@@ -175,55 +276,9 @@ function analyzeInsulationPattern(data) {
 
 ---
 
-### 4. 파일 업로드 처리 - Excel/CSV 파싱 ([script.js:571-627](script.js#L571-L627))
+### 5. 데이터 시각화 - Chart.js 그래프 생성
 
-```javascript
-// Excel 파일 읽기 (SheetJS 라이브러리 사용)
-function readExcelFile(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-                resolve(jsonData);
-            } catch (error) {
-                reject(new Error('Excel 파일을 읽는 중 오류가 발생했습니다: ' + error.message));
-            }
-        };
-        reader.readAsArrayBuffer(file);
-    });
-}
-
-// CSV 파일 읽기
-function readCSVFile(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const text = e.target.result;
-                const lines = text.split('\n').filter(line => line.trim() !== '');
-                const jsonData = lines.map(line => {
-                    return line.split(',').map(part => part.trim());
-                });
-                resolve(jsonData);
-            } catch (error) {
-                reject(new Error('CSV 파일을 읽는 중 오류가 발생했습니다: ' + error.message));
-            }
-        };
-        reader.readAsText(file, 'UTF-8');
-    });
-}
-```
-
-**설명**: FileReader API와 SheetJS 라이브러리를 사용하여 Excel/CSV 파일을 비동기로 읽고 2차원 배열 형태로 파싱합니다.
-
----
-
-### 5. 데이터 시각화 - Chart.js 그래프 생성 ([script.js:1433-1519](script.js#L1433-L1519))
+#### 절연성능 평가 그래프 ([script.js:1433-1519](script.js#L1433-L1519))
 
 ```javascript
 function updatePerformanceChartWithData(data) {
@@ -253,15 +308,42 @@ function updatePerformanceChartWithData(data) {
 }
 ```
 
-**설명**: Chart.js 라이브러리를 사용하여 전류-온도 관계를 산점도(scatter plot)로 시각화합니다. showLine 옵션으로 데이터 포인트를 연결합니다.
+#### 절연저항 패턴 그래프 ([script.js:1522-1608](script.js#L1522-L1608))
+
+```javascript
+function updateDegradationChartWithData(data) {
+    const labels = data.map(d => d.date);
+    const resistanceData = data.map(d => d.resistance);
+
+    // y축 최댓값: 데이터 최댓값 + 300을 100 단위로 반올림
+    const yAxisMax = Math.round((Math.max(...resistanceData) + 300) / 100) * 100;
+
+    degradationChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '절연저항 (MΩ)',
+                data: resistanceData,
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.4
+            }]
+        }
+    });
+}
+```
+
+**설명**: Chart.js 라이브러리를 사용하여 전류-온도 관계는 산점도로, 절연저항 추이는 선 그래프로 시각화합니다.
 
 ---
 
-### 6. 로컬 저장소 관리 - 평가 이력 저장 ([script.js:1017-1029](script.js#L1017-L1029))
+### 6. 로컬 저장소 관리 - 평가 이력 저장 ([script.js:1247-1258](script.js#L1247-L1258))
 
 ```javascript
 function saveRecord(record) {
-    const key = record.type === 'performance' ? STORAGE_KEY_PERFORMANCE : STORAGE_KEY_DEGRADATION;
+    const key = record.type === 'performance'
+        ? STORAGE_KEY_PERFORMANCE
+        : STORAGE_KEY_DEGRADATION;
     const history = getHistory(record.type);
     history.unshift(record); // 최신 기록을 맨 앞에 추가
 
@@ -335,27 +417,58 @@ CV(%) = (σ / μ) × 100
 2. 상단 모드 버튼으로 평가 유형 선택
 
 ### 2. 절연성능 경향평가
+
 **방법 1: 단일 데이터 입력**
-- 5분 간격으로 전류/온도 측정값 입력 (최소 2회)
-- "계산 및 저장" 클릭
+1. 5분 간격으로 전류/온도 측정값 입력
+2. "추가" 버튼 클릭 (최소 2회 이상)
+3. 입력된 데이터 확인 (마지막 값이 I_max, T_max로 사용됨)
+4. "계산 및 저장" 클릭
 
 **방법 2: 파일 업로드**
-- Excel/CSV 파일 준비 (형식: 전류, 온도)
-- "다량 데이터 분석" 클릭
+1. Excel/CSV 파일 준비
+   - 형식: 1열(전류), 2열(온도)
+   - 첫 행 헤더 선택 사항
+2. 파일 선택 후 "다량 데이터 분석" 클릭
+3. 각 행이 개별 평가되어 자동 저장
+
+**결과 확인**
+- 위험도 평가 결과 (L1~L4)
+- 체크리스트 (L2 이상일 때만 표시)
+- 체크리스트 항목 선택 시 실시간 점수 업데이트
+- 상세보기에서도 체크리스트 작성 가능
 
 ### 3. 절연저항 패턴평가
+
 **방법 1: 단일 데이터 입력**
-- 연도, 월, 절연저항 입력
-- "추가" 클릭 (이전 기록과 자동 병합 가능)
+1. 연도, 월, 절연저항 입력
+2. "추가" 클릭
+3. 이전에 선택한 기록이 있으면 자동으로 병합되어 분석
 
 **방법 2: 파일 업로드**
-- Excel/CSV 파일 준비 (형식: 연도, 월, 절연저항)
-- "다량 데이터 분석" 클릭
+1. Excel/CSV 파일 준비
+   - 형식: 1열(연도), 2열(월), 3열(절연저항)
+2. "다량 데이터 분석" 클릭
 
-### 4. 결과 확인 및 이력 관리
-- 평가 결과는 자동으로 localStorage에 저장
-- "평가 기록" 섹션에서 이력 조회/삭제
-- 체크박스 선택 후 "선택한 기록 그래프 보기"로 데이터 시각화
+**결과 확인**
+- 패턴 분류 (임계형/가속형/완만형/국부형/안정형)
+- 열화 단계 및 관리 방향
+- 시계열 그래프
+
+### 4. 이력 관리
+
+**그래프 보기**
+1. 평가 기록에서 체크박스 선택
+2. "선택한 기록 그래프 보기" 클릭
+3. 선택된 데이터가 누적되어 그래프에 표시
+
+**상세보기**
+1. 기록 항목의 "상세보기" 클릭
+2. 입력값, 계산 결과, 체크리스트 확인
+3. 상세보기에서도 체크리스트 작성 및 점수 확인 가능
+
+**기록 삭제**
+- 개별 삭제: "삭제" 버튼 클릭
+- 전체 삭제: "전체 삭제" 버튼 클릭
 
 ---
 
@@ -371,20 +484,21 @@ CV(%) = (σ / μ) × 100
 
 ---
 
-## 논문 부록 활용 가이드
+## 주요 업데이트
 
-### 부록 A: 시스템 아키텍처
-- [index.html](index.html): 사용자 인터페이스 구조
-- [script.js](script.js): 핵심 분석 알고리즘
+### v2.0 - 체크리스트 시스템 추가
+- 위험도 기반 점검지표 체크리스트 (L2 이상 자동 표시)
+- 가중치 시스템 도입 (1~3점)
+- 점검지표별 개별 점수 측정 (전기적/열적/발열민감도)
+- 총점 기반 상태 평가 (주의/경계/위험)
+- 관리방안 자동 제시
+- 상세보기에서도 체크리스트 작성 가능
+- 실시간 점수 업데이트
 
-### 부록 B: 핵심 알고리즘 코드
-- **임계전류 계산**: [script.js:41-55](script.js#L41-L55)
-- **위험도 분류**: [script.js:358-384](script.js#L358-L384)
-- **열화 패턴 분석**: [script.js:835-938](script.js#L835-L938)
-
-### 부록 C: 데이터 입출력
-- **파일 파싱**: [script.js:571-627](script.js#L571-L627)
-- **그래프 생성**: [script.js:1433-1519](script.js#L1433-L1519)
+### v1.0 - 초기 버전
+- 절연성능 경향평가 기능
+- 절연저항 패턴평가 기능
+- 데이터 시각화 및 이력 관리
 
 ---
 
@@ -394,4 +508,10 @@ CV(%) = (σ / μ) × 100
 - 모든 데이터는 클라이언트 측(브라우저)에서 처리되며 서버 전송 없음
 - localStorage 용량 제한(일반적으로 5~10MB)으로 최대 100개 기록만 저장
 - 정확한 분석을 위해 측정 데이터의 품질과 일관성 확보 필요
+- 체크리스트 점수는 평가 결과와 별도로 관리되며, 사용자의 현장 점검 결과를 반영
 
+---
+
+## 라이선스
+
+본 시스템은 연구 및 교육 목적으로 개발되었습니다.

@@ -460,99 +460,322 @@ function getRiskDescriptionR(level) {
 // 체크리스트 HTML 생성 함수
 function generateChecklistHTML(riskI, riskT, riskR) {
     let html = '';
-    
+
     // 전류 관련 체크리스트 (전기적 스트레스가 L2 이상일 때)
     if (['L2', 'L3', 'L4'].includes(riskI.level)) {
         html += `
             <div class="checklist-category" style="margin-bottom: 20px;">
                 <h4 style="color: #667eea; margin-bottom: 10px;">전기적 스트레스 점검지표</h4>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="electric" data-weight="2" style="margin-right: 8px;">
                     <label>운전 중 정격전류를 초과하는 구간이 존재하는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="electric" data-weight="3" style="margin-right: 8px;">
                     <label>부하변동이 크거나, 순간 과전류가 반복되는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="electric" data-weight="2" style="margin-right: 8px;">
                     <label>교반기에 이물질이 끼인 상태로 운전되는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="electric" data-weight="1" style="margin-right: 8px;">
                     <label>모터 기동방식은 비(非)인버터 인가? (DOL/Y-Δ)</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="electric" data-weight="2" style="margin-right: 8px;">
                     <label>S.F(여유계수) 1.0 이하의 모터를 장시간 운전하는가?</label>
                 </div>
             </div>
         `;
     }
-    
+
     // 온도 관련 체크리스트 (열적 스트레스가 L2 이상일 때)
     if (['L2', 'L3', 'L4'].includes(riskT.level)) {
         html += `
             <div class="checklist-category" style="margin-bottom: 20px;">
                 <h4 style="color: #667eea; margin-bottom: 10px;">열적 스트레스 점검지표</h4>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="thermal" data-weight="3" style="margin-right: 8px;">
                     <label>전기배선 단자부가 70℃에 근접한 적이 있는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="thermal" data-weight="2" style="margin-right: 8px;">
                     <label>전기배선 주변온도가 40℃를 초과하는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="thermal" data-weight="1" style="margin-right: 8px;">
                     <label>설치장소가 통풍 또는 발열 불충분 조건인가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="thermal" data-weight="2" style="margin-right: 8px;">
                     <label>열원(전열, 증기열)이 전기배선에 인접해 있는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="thermal" data-weight="2" style="margin-right: 8px;">
                     <label>1회 가동시 수일 이상 연속가동 되는가?</label>
                 </div>
             </div>
         `;
     }
-    
+
     // 온도반응/열화 관련 체크리스트 (민감도가 L2 이상일 때)
     if (['L2', 'L3', 'L4'].includes(riskR.level)) {
         html += `
             <div class="checklist-category" style="margin-bottom: 20px;">
-                <h4 style="color: #667eea; margin-bottom: 10px;">온도증가율 점검지표</h4>
+                <h4 style="color: #667eea; margin-bottom: 10px;">발열민감도 점검지표</h4>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="sensitivity" data-weight="1" style="margin-right: 8px;">
                     <label>동일조건 중 과거보다 온도가 빠르게 상승하는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="sensitivity" data-weight="3" style="margin-right: 8px;">
                     <label>전류변화가 작음에도 온도 급상승 패턴이 있는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="sensitivity" data-weight="3" style="margin-right: 8px;">
                     <label>부하증가시 온도가 비선형적으로 급하게 상승하는가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="sensitivity" data-weight="2" style="margin-right: 8px;">
                     <label>동종의 다른 설비보다 온도상승폭이 과도한가?</label>
                 </div>
                 <div class="checklist-item" style="margin-bottom: 8px;">
-                    <input type="checkbox" style="margin-right: 8px;">
+                    <input type="checkbox" class="checklist-checkbox" data-category="sensitivity" data-weight="1" style="margin-right: 8px;">
                     <label>온도상승 후 냉각될 때 열이 잔류하는 경향이 있는가?</label>
                 </div>
             </div>
         `;
     }
-    
+
     if (html === '') {
         html = '<p style="text-align: center; color: #28a745; font-weight: 600; padding: 20px;">모든 지표가 정상 범위입니다. 특별한 체크리스트가 필요하지 않습니다.</p>';
+    } else {
+        // 점검지표별 점수 표시 영역 추가
+        let categoryScoresHTML = '';
+
+        // 전기적 스트레스 점수
+        if (['L2', 'L3', 'L4'].includes(riskI.level)) {
+            categoryScoresHTML += `
+                <div style="flex: 1; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+                    <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 8px;">전기적 스트레스</div>
+                    <div id="electric-score" style="font-size: 2em; font-weight: bold; color: #667eea;">0</div>
+                    <div style="font-size: 0.75em; color: #6c757d; margin-top: 5px;">/ 10점</div>
+                </div>
+            `;
+        }
+
+        // 열적 스트레스 점수
+        if (['L2', 'L3', 'L4'].includes(riskT.level)) {
+            categoryScoresHTML += `
+                <div style="flex: 1; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+                    <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 8px;">열적 스트레스</div>
+                    <div id="thermal-score" style="font-size: 2em; font-weight: bold; color: #667eea;">0</div>
+                    <div style="font-size: 0.75em; color: #6c757d; margin-top: 5px;">/ 10점</div>
+                </div>
+            `;
+        }
+
+        // 발열민감도 점수
+        if (['L2', 'L3', 'L4'].includes(riskR.level)) {
+            categoryScoresHTML += `
+                <div style="flex: 1; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+                    <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 8px;">발열민감도</div>
+                    <div id="sensitivity-score" style="font-size: 2em; font-weight: bold; color: #667eea;">0</div>
+                    <div style="font-size: 0.75em; color: #6c757d; margin-top: 5px;">/ 10점</div>
+                </div>
+            `;
+        }
+
+        // 통합 결과 표시 영역 추가
+        html += `
+            <div style="margin-top: 30px; padding: 25px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h4 style="color: #667eea; margin-bottom: 20px; text-align: center; font-size: 1.3em;">📋 점검 종합 결과</h4>
+
+                <!-- 점검지표별 점수 -->
+                <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+                    ${categoryScoresHTML}
+                </div>
+
+                <!-- 총점 표시 -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="display: inline-block; padding: 15px 40px; background: white; border-radius: 8px; box-shadow: 0 3px 6px rgba(0,0,0,0.15); border: 2px solid #667eea;">
+                        <div style="font-size: 0.9em; color: #6c757d; margin-bottom: 5px;">총 점수</div>
+                        <div id="checklist-total-score" style="font-size: 2.8em; font-weight: bold; color: #667eea;">0</div>
+                    </div>
+                </div>
+
+                <!-- 상태 표시 -->
+                <div id="checklist-status-result" style="text-align: center; font-size: 1.2em; font-weight: bold; padding: 20px; background: white; border-radius: 10px; margin-bottom: 20px; border: 3px solid #dee2e6;">
+                    체크리스트를 선택해주세요.
+                </div>
+
+                <!-- 관리방안 표시 -->
+                <div id="checklist-management-result" style="padding: 20px; background: white; border-radius: 10px; border-left: 5px solid #667eea;">
+                    <h5 style="color: #667eea; margin-bottom: 15px; font-size: 1.1em;">📌 관리방안</h5>
+                    <div id="management-detail" style="font-size: 1.05em; color: #495057; line-height: 1.8;">
+                        체크리스트를 선택하면 적절한 관리방안이 표시됩니다.
+                    </div>
+                </div>
+
+                <!-- 기준 안내 -->
+                <div style="margin-top: 20px; padding: 15px; background: #fff; border-radius: 8px; border: 1px solid #dee2e6;">
+                    <h5 style="color: #667eea; margin-bottom: 10px; font-size: 0.95em;">💡 평가 기준</h5>
+                    <ul style="margin: 0; padding-left: 20px; line-height: 1.8; font-size: 0.9em;">
+                        <li><strong style="color: #ffc107;">주의 (1~2점):</strong> 점검주기 단축필요</li>
+                        <li><strong style="color: #fd7e14;">경계 (3~4점):</strong> 절연저항 패턴관리 필요</li>
+                        <li><strong style="color: #dc3545;">위험 (5점 이상):</strong> 가동중지, 정밀점검 필요</li>
+                    </ul>
+                </div>
+            </div>
+        `;
     }
-    
+
     return html;
+}
+
+// 카테고리별 점수 계산 함수
+function calculateCategoryScore(category) {
+    const checkboxes = document.querySelectorAll(`.checklist-checkbox[data-category="${category}"]:checked`);
+    let score = 0;
+
+    checkboxes.forEach(checkbox => {
+        score += parseInt(checkbox.dataset.weight);
+    });
+
+    return score;
+}
+
+// 체크리스트 전체 점수 계산 함수
+function calculateChecklistTotalScore() {
+    const checkboxes = document.querySelectorAll('.checklist-checkbox:checked');
+    let totalScore = 0;
+
+    checkboxes.forEach(checkbox => {
+        totalScore += parseInt(checkbox.dataset.weight);
+    });
+
+    return totalScore;
+}
+
+// 체크리스트 결과 평가 함수
+function evaluateChecklistResult(score) {
+    if (score === 0) {
+        return {
+            status: '미평가',
+            statusColor: '#6c757d',
+            statusBgColor: '#f8f9fa',
+            statusBorderColor: '#dee2e6',
+            management: '체크리스트를 선택하면 적절한 관리방안이 표시됩니다.',
+            managementBorderColor: '#667eea'
+        };
+    } else if (score >= 1 && score <= 2) {
+        return {
+            status: '주의',
+            statusColor: '#856404',
+            statusBgColor: '#fff3cd',
+            statusBorderColor: '#ffc107',
+            management: '점검주기 단축필요<br><br>• 현재 점검 주기보다 더 짧은 간격으로 절연성능을 모니터링하세요.<br>• 추세를 지속적으로 관찰하여 악화 여부를 확인하세요.',
+            managementBorderColor: '#ffc107'
+        };
+    } else if (score >= 3 && score <= 4) {
+        return {
+            status: '경계',
+            statusColor: '#8b4513',
+            statusBgColor: '#ffe5cc',
+            statusBorderColor: '#fd7e14',
+            management: '절연저항 패턴관리 필요<br><br>• 절연저항 값의 추이를 면밀히 분석하세요.<br>• 패턴 변화를 기록하고 이상 징후를 감지하세요.<br>• 필요시 전문가 검토를 권장합니다.',
+            managementBorderColor: '#fd7e14'
+        };
+    } else { // score >= 5
+        return {
+            status: '위험',
+            statusColor: '#721c24',
+            statusBgColor: '#f8d7da',
+            statusBorderColor: '#dc3545',
+            management: '가동중지, 정밀점검 필요<br><br>• <strong>즉시 설비 가동을 중지</strong>하세요.<br>• 전문가에 의한 정밀 점검을 실시하세요.<br>• 절연 상태를 면밀히 검사하고 필요시 부품을 교체하세요.<br>• 안전이 확인될 때까지 재가동을 금지하세요.',
+            managementBorderColor: '#dc3545'
+        };
+    }
+}
+
+// 체크리스트 결과 업데이트 함수
+function updateChecklistResults() {
+    console.log('updateChecklistResults 함수 호출');
+
+    const totalScore = calculateChecklistTotalScore();
+    const result = evaluateChecklistResult(totalScore);
+
+    // 카테고리별 점수 업데이트
+    const electricScore = calculateCategoryScore('electric');
+    const thermalScore = calculateCategoryScore('thermal');
+    const sensitivityScore = calculateCategoryScore('sensitivity');
+
+    console.log('점수 계산:', {
+        electric: electricScore,
+        thermal: thermalScore,
+        sensitivity: sensitivityScore,
+        total: totalScore
+    });
+
+    // 전기적 스트레스 점수 업데이트
+    const electricElement = document.getElementById('electric-score');
+    console.log('electric-score 엘리먼트:', electricElement);
+    if (electricElement) {
+        electricElement.textContent = electricScore;
+        electricElement.style.color = electricScore === 0 ? '#667eea' : getScoreColor(electricScore);
+    }
+
+    // 열적 스트레스 점수 업데이트
+    const thermalElement = document.getElementById('thermal-score');
+    console.log('thermal-score 엘리먼트:', thermalElement);
+    if (thermalElement) {
+        thermalElement.textContent = thermalScore;
+        thermalElement.style.color = thermalScore === 0 ? '#667eea' : getScoreColor(thermalScore);
+    }
+
+    // 발열민감도 점수 업데이트
+    const sensitivityElement = document.getElementById('sensitivity-score');
+    console.log('sensitivity-score 엘리먼트:', sensitivityElement);
+    if (sensitivityElement) {
+        sensitivityElement.textContent = sensitivityScore;
+        sensitivityElement.style.color = sensitivityScore === 0 ? '#667eea' : getScoreColor(sensitivityScore);
+    }
+
+    // 총점 업데이트
+    const scoreElement = document.getElementById('checklist-total-score');
+    console.log('checklist-total-score 엘리먼트:', scoreElement);
+    if (scoreElement) {
+        scoreElement.textContent = totalScore;
+        scoreElement.style.color = totalScore === 0 ? '#667eea' : result.statusColor;
+    }
+
+    // 상태 업데이트
+    const statusElement = document.getElementById('checklist-status-result');
+    if (statusElement) {
+        statusElement.textContent = result.status;
+        statusElement.style.color = result.statusColor;
+        statusElement.style.backgroundColor = result.statusBgColor;
+        statusElement.style.borderColor = result.statusBorderColor;
+    }
+
+    // 관리방안 업데이트
+    const managementElement = document.getElementById('management-detail');
+    const managementContainer = document.getElementById('checklist-management-result');
+    if (managementElement) {
+        managementElement.innerHTML = result.management;
+    }
+    if (managementContainer) {
+        managementContainer.style.borderLeftColor = result.managementBorderColor;
+    }
+}
+
+// 점수에 따른 색상 결정 함수
+function getScoreColor(score) {
+    if (score === 0) return '#667eea';
+    if (score >= 1 && score <= 2) return '#ffc107';
+    if (score >= 3 && score <= 4) return '#fd7e14';
+    return '#dc3545'; // 5점 이상
 }
 
 // 체크리스트 표시
@@ -560,6 +783,12 @@ function displayChecklist(riskI, riskT, riskR) {
     const checklistSection = document.getElementById('checklist-section');
     const html = generateChecklistHTML(riskI, riskT, riskR);
     checklistSection.innerHTML = html;
+
+    // 체크박스 이벤트 리스너 추가
+    const checkboxes = document.querySelectorAll('.checklist-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateChecklistResults);
+    });
 }
 
 // ==================== 데이터 입력 관리 ====================
@@ -1318,6 +1547,18 @@ function viewHistoryDetail(id, type) {
     
     if (historyList) {
         historyList.insertAdjacentHTML('afterbegin', detailHTML);
+
+        // 상세보기에서 체크박스 이벤트 리스너 추가 (performance 타입인 경우)
+        if (type === 'performance') {
+            setTimeout(() => {
+                const checkboxes = document.querySelectorAll('.history-detail .checklist-checkbox');
+                console.log('상세보기 체크박스 개수:', checkboxes.length);
+                checkboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', updateChecklistResults);
+                });
+            }, 100);
+        }
+
         // 스크롤을 맨 위로
         historyList.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -1740,3 +1981,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // 초기 로드 시 절연성능 평가 모드가 활성화되어 있으므로 해당 기록 로드
     loadHistory('performance');
 });
+console.log('Script loaded');
