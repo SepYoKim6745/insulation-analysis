@@ -272,10 +272,10 @@ function updatePerformanceInputTable() {
         const isLast = index === lastIndex;
 
         return `
-            <tr style="${isLast ? 'background: #e7f5e7;' : ''}">
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${data.time}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${isLast ? 'font-weight: bold; color: #28a745;' : ''}">${data.current.toFixed(2)}${isLast ? ' 🔵' : ''}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${isLast ? 'font-weight: bold; color: #28a745;' : ''}">${data.temperature.toFixed(2)}${isLast ? ' 🔵' : ''}</td>
+            <tr style="${isLast ? 'background: #e7f5e7;' : 'background: white;'}">
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #333;">${data.time}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${isLast ? 'font-weight: bold; color: #28a745;' : 'color: #333;'}">${data.current.toFixed(2)}${isLast ? ' 🔵' : ''}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${isLast ? 'font-weight: bold; color: #28a745;' : 'color: #333;'}">${data.temperature.toFixed(2)}${isLast ? ' 🔵' : ''}</td>
                 <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">
                     <button onclick="deletePerformanceInputRow(${index})" style="padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">삭제</button>
                 </td>
