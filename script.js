@@ -29,19 +29,22 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 });
 
 // 절연성능 평가 계산 함수
-function calculatePerformance(current, temperature) {
+// current: I_max (5분 간격 2회 이상 측정값 중 최댓값)
+// temperature: T_max (5분 간격 2회 이상 측정값 중 최댓값)
+// timeSeriesData: 시계열 데이터 배열 (민감도 계산용)
+function calculatePerformance(current, temperature, timeSeriesData = null) {
     if (!current || !temperature) {
-        alert('전류와 온도를 모두 입력해주세요.');
+        alert('전류(I_max)와 온도(T_max)를 모두 입력해주세요.');
         return;
     }
-    
+
     // Icritic 계산 (회귀식: T = 39.452 + 0.025 * I + 0.014 * I²)
     // T_CRITIC = REGRESSION_A + REGRESSION_B * I + REGRESSION_C * I²
     // 0 = REGRESSION_C * I² + REGRESSION_B * I + (REGRESSION_A - T_CRITIC)
     const a = REGRESSION_C; // 0.014 (I²의 계수)
     const b = REGRESSION_B; // 0.025 (I의 계수)
     const c = REGRESSION_A - T_CRITIC; // 39.452 - 70 = -30.548 (상수항)
-    
+
     const discriminant = b * b - 4 * a * c; // 판별식: b² - 4ac
     let iCritic;
     if (discriminant >= 0) {
@@ -50,11 +53,33 @@ function calculatePerformance(current, temperature) {
         // 음수인 경우, 실용적인 값으로 대체
         iCritic = 100; // 기본값
     }
-    
+
     // 정량지표 계산
-    const deltaI = current / iCritic; // 전기적 스트레스
-    const deltaT = temperature / T_CRITIC; // 열적 스트레스
-    const sensitivity = deltaT / deltaI; // 온도반응 민감도
+    // I_max: 5분 간격 2회 이상 측정값 중 최댓값
+    // T_max: 5분 간격 2회 이상 측정값 중 최댓값
+    const deltaI = current / iCritic; // 전기적 스트레스 S_I = I_max / I_critic
+    const deltaT = temperature / T_CRITIC; // 열적 스트레스 S_T = T_max / T_critic
+
+    // 온도반응 민감도 계산: R = (T_n2 - T_n1) / (I_n2 - I_n1)
+    let sensitivity;
+
+    if (timeSeriesData && timeSeriesData.length >= 2) {
+        // 마지막 2개 데이터 사용
+        const n1 = timeSeriesData[timeSeriesData.length - 2];
+        const n2 = timeSeriesData[timeSeriesData.length - 1];
+        const deltaTemp = n2.temperature - n1.temperature;
+        const deltaCurrent = n2.current - n1.current;
+
+        if (deltaCurrent !== 0) {
+            sensitivity = deltaTemp / deltaCurrent;
+        } else {
+            // 전류 변화가 없으면 기존 방식 사용
+            sensitivity = deltaT / deltaI;
+        }
+    } else {
+        // 시계열 데이터가 없으면 첫 번째 데이터로 표시
+        sensitivity = null; // null로 설정하여 "-"로 표시되도록 함
+    }
     
     // 위험도 평가
     const riskI = evaluateRiskI(deltaI);
@@ -74,7 +99,8 @@ function calculatePerformance(current, temperature) {
         date: new Date().toISOString(),
         inputs: {
             current: current,
-            temperature: temperature
+            temperature: temperature,
+            timeSeriesData: timeSeriesData // 시계열 데이터 저장
         },
         results: {
             deltaI: deltaI,
@@ -158,15 +184,26 @@ document.getElementById('upload-performance-file').addEventListener('click', asy
             return;
         }
 
-        // 각 데이터에 대해 계산 및 저장
+        // 각 데이터에 대해 계산 및 저장 (직전 행 참고)
         parsedData.forEach((item, index) => {
             // 약간의 지연을 두어 기록이 순차적으로 저장되도록
             setTimeout(() => {
-                calculatePerformance(item.current, item.temperature);
+                // 첫 번째 행이면 직전 데이터 없이 계산
+                if (index === 0) {
+                    calculatePerformance(item.current, item.temperature, null);
+                } else {
+                    // 두 번째 행부터는 직전 행과 현재 행을 시계열로 전달
+                    const prevItem = parsedData[index - 1];
+                    const timeSeriesData = [
+                        { time: 0, current: prevItem.current, temperature: prevItem.temperature },
+                        { time: 5, current: item.current, temperature: item.temperature }
+                    ];
+                    calculatePerformance(item.current, item.temperature, timeSeriesData);
+                }
             }, index * 100);
         });
 
-        alert(`${parsedData.length}개의 데이터를 분석했습니다.`);
+        alert(`${parsedData.length}개의 데이터를 분석했습니다.\n(각 행은 직전 행을 참고하여 민감도 계산)`);
 
     } catch (error) {
         alert(error.message);
@@ -174,13 +211,18 @@ document.getElementById('upload-performance-file').addEventListener('click', asy
     }
 });
 
-// 단일 데이터 추가 버튼 클릭 이벤트 (절연성능 평가)
+// 시계열 데이터 입력 관리
+let performanceTimeSeriesData = [];
+let performanceCurrentTime = 0;
+
+// 시계열 데이터 추가 버튼 클릭 이벤트 (절연성능 평가)
 document.getElementById('add-single-performance').addEventListener('click', () => {
     const current = document.getElementById('single-current-input').value.trim();
     const temperature = document.getElementById('single-temperature-input').value.trim();
+    const time = performanceCurrentTime;
 
     if (!current || !temperature) {
-        alert('전류와 온도를 모두 입력해주세요.');
+        alert('전류(I)와 온도(T)를 모두 입력해주세요.');
         return;
     }
 
@@ -189,28 +231,126 @@ document.getElementById('add-single-performance').addEventListener('click', () =
         return;
     }
 
-    // 선택된 기록들의 데이터 가져오기
-    const selectedData = getSelectedPerformanceRecordsData();
-    
-    // 선택된 기록이 있으면 합쳐서 처리, 없으면 단일 데이터만 처리
-    if (selectedData.length > 0) {
-        // 선택된 데이터와 새 데이터 합치기
-        const combinedData = [...selectedData, {
-            current: parseFloat(current),
-            temperature: parseFloat(temperature)
-        }];
-        
-        // 합쳐진 데이터로 그래프 업데이트
-        updatePerformanceChartWithData(combinedData);
-    }
+    // 데이터 추가
+    performanceTimeSeriesData.push({
+        time: time,
+        current: parseFloat(current),
+        temperature: parseFloat(temperature)
+    });
 
-    // 계산 및 저장
-    calculatePerformance(parseFloat(current), parseFloat(temperature));
+    // 다음 시간 설정 (5분 간격)
+    performanceCurrentTime += 5;
+    document.getElementById('single-time-input').value = performanceCurrentTime;
 
     // 입력 필드 초기화
     document.getElementById('single-current-input').value = '';
     document.getElementById('single-temperature-input').value = '';
+
+    // 테이블 업데이트
+    updatePerformanceInputTable();
+
+    // 입력 리스트 표시
+    document.getElementById('performance-input-list').style.display = 'block';
 });
+
+// 시계열 데이터 테이블 업데이트
+function updatePerformanceInputTable() {
+    const tbody = document.getElementById('performance-input-tbody');
+
+    if (performanceTimeSeriesData.length === 0) {
+        tbody.innerHTML = '';
+        document.getElementById('performance-input-list').style.display = 'none';
+        return;
+    }
+
+    // 마지막 값 (I_max, T_max로 사용될 값)
+    const lastIndex = performanceTimeSeriesData.length - 1;
+    const lastData = performanceTimeSeriesData[lastIndex];
+
+    // 테이블 생성
+    tbody.innerHTML = performanceTimeSeriesData.map((data, index) => {
+        const isLast = index === lastIndex;
+
+        return `
+            <tr style="${isLast ? 'background: #e7f5e7;' : ''}">
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${data.time}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${isLast ? 'font-weight: bold; color: #28a745;' : ''}">${data.current.toFixed(2)}${isLast ? ' 🔵' : ''}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${isLast ? 'font-weight: bold; color: #28a745;' : ''}">${data.temperature.toFixed(2)}${isLast ? ' 🔵' : ''}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">
+                    <button onclick="deletePerformanceInputRow(${index})" style="padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">삭제</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // 마지막 값 정보 표시
+    const maxInfo = document.getElementById('performance-max-info');
+    if (performanceTimeSeriesData.length >= 2) {
+        maxInfo.innerHTML = `→ I<sub>max</sub> = ${lastData.current.toFixed(2)} A (마지막 측정값), T<sub>max</sub> = ${lastData.temperature.toFixed(2)} ℃ (마지막 측정값)`;
+    } else {
+        maxInfo.innerHTML = '';
+    }
+}
+
+// 시계열 데이터 행 삭제
+function deletePerformanceInputRow(index) {
+    performanceTimeSeriesData.splice(index, 1);
+    updatePerformanceInputTable();
+
+    if (performanceTimeSeriesData.length === 0) {
+        performanceCurrentTime = 0;
+        document.getElementById('single-time-input').value = 0;
+    }
+}
+
+// 초기화 버튼 클릭 이벤트
+document.getElementById('reset-performance-input').addEventListener('click', () => {
+    if (performanceTimeSeriesData.length > 0 && !confirm('입력된 모든 데이터를 초기화하시겠습니까?')) {
+        return;
+    }
+
+    performanceTimeSeriesData = [];
+    performanceCurrentTime = 0;
+    document.getElementById('single-time-input').value = 0;
+    document.getElementById('single-current-input').value = '';
+    document.getElementById('single-temperature-input').value = '';
+    updatePerformanceInputTable();
+});
+
+// 계산 및 저장 버튼 클릭 이벤트
+document.getElementById('calculate-performance').addEventListener('click', () => {
+    if (performanceTimeSeriesData.length < 2) {
+        alert('최소 2개 이상의 데이터를 입력해주세요.');
+        return;
+    }
+
+    // 각 시계열 데이터를 개별 기록으로 저장
+    performanceTimeSeriesData.forEach((data, index) => {
+        setTimeout(() => {
+            if (index === 0) {
+                // 첫 번째 데이터: 이전 데이터 없음
+                calculatePerformance(data.current, data.temperature, null);
+            } else {
+                // 두 번째 이후: 이전 데이터와 현재 데이터 사용
+                const prevData = performanceTimeSeriesData[index - 1];
+                const timeSeriesDataForCalc = [
+                    { time: prevData.time, current: prevData.current, temperature: prevData.temperature },
+                    { time: data.time, current: data.current, temperature: data.temperature }
+                ];
+                calculatePerformance(data.current, data.temperature, timeSeriesDataForCalc);
+            }
+        }, index * 100); // 각 저장 사이에 100ms 지연
+    });
+
+    // 입력 데이터 초기화
+    performanceTimeSeriesData = [];
+    performanceCurrentTime = 0;
+    document.getElementById('single-time-input').value = 0;
+    updatePerformanceInputTable();
+});
+
+// 전역 함수로 등록
+window.deletePerformanceInputRow = deletePerformanceInputRow;
 
 // 전기적 스트레스 위험도 평가
 function evaluateRiskI(deltaI) {
@@ -230,6 +370,10 @@ function evaluateRiskT(deltaT) {
 
 // 온도반응 민감도 위험도 평가
 function evaluateRiskR(sensitivity) {
+    // null인 경우 (첫 번째 데이터 포인트)
+    if (sensitivity === null) {
+        return { level: '-', name: '기준값', class: 'risk-baseline' };
+    }
     if (sensitivity < 0.4) return { level: 'L1', name: '보통', class: 'risk-l1' };
     if (sensitivity < 1.0) return { level: 'L2', name: '높음', class: 'risk-l2' };
     if (sensitivity < 1.5) return { level: 'L3', name: '위험', class: 'risk-l3' };
@@ -263,8 +407,8 @@ function displayPerformanceResults(deltaI, deltaT, sensitivity, riskI, riskT, ri
             <td>${getRiskDescriptionT(riskT.level)}</td>
         </tr>
         <tr>
-            <td><strong>온도반응 민감도 (R)</strong><br><small>R = S<sub>T</sub> / S<sub>I</sub></small></td>
-            <td>${sensitivity.toFixed(3)} ℃/A</td>
+            <td><strong>온도반응 민감도 (R)</strong><br><small>R = (T<sub>n2</sub> - T<sub>n1</sub>) / (I<sub>n2</sub> - I<sub>n1</sub>)</small></td>
+            <td>${sensitivity === null ? '-' : sensitivity.toFixed(3) + ' ℃/A'}</td>
             <td>
                 <div class="risk-badge-container">
                     <span class="risk-badge ${riskR.class}">${riskR.level}</span>
@@ -301,6 +445,7 @@ function getRiskDescriptionT(level) {
 
 function getRiskDescriptionR(level) {
     const descriptions = {
+        '-': '이전 측정값 없음',
         'L1': '0.4 미만',
         'L2': '0.4 이상 ~ 1.0 미만',
         'L3': '1.0 이상',
@@ -946,7 +1091,7 @@ function loadHistory(filter = 'all') {
                         <span class="history-item-date">${dateStr}</span>
                     </div>
                     <div class="history-item-summary">
-                        <p><strong>입력:</strong> 전류 ${current.toFixed(2)} A, 온도 ${temperature.toFixed(2)} ℃</p>
+                        <p><strong>입력:</strong> I<sub>max</sub> ${current.toFixed(2)} A, T<sub>max</sub> ${temperature.toFixed(2)} ℃</p>
                         <p><strong>위험도:</strong> 전기적 스트레스 ${riskI.level}(${riskI.name}), 열적 스트레스 ${riskT.level}(${riskT.name}), 민감도 ${riskR.level}(${riskR.name})</p>
                     </div>
                     <div class="history-item-actions">
@@ -1043,24 +1188,59 @@ function viewHistoryDetail(id, type) {
     `;
     
     if (type === 'performance') {
-        const { current, temperature } = record.inputs;
+        const { current, temperature, timeSeriesData } = record.inputs;
         const { deltaI, deltaT, sensitivity, iCritic, riskI, riskT, riskR } = record.results;
-        
+
         // 체크리스트 HTML 생성
         const checklistHTML = generateChecklistHTML(riskI, riskT, riskR);
-        
+
+        // 시계열 데이터 테이블 생성
+        let timeSeriesTable = '';
+        if (timeSeriesData && timeSeriesData.length > 0) {
+            const lastIndex = timeSeriesData.length - 1;
+            timeSeriesTable = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em;">';
+            timeSeriesTable += '<thead><tr style="background: #f8f9fa;"><th style="border: 1px solid #ddd; padding: 8px;">시간(분)</th><th style="border: 1px solid #ddd; padding: 8px;">전류(A)</th><th style="border: 1px solid #ddd; padding: 8px;">온도(℃)</th><th style="border: 1px solid #ddd; padding: 8px;">비고</th></tr></thead>';
+            timeSeriesTable += '<tbody>';
+            timeSeriesData.forEach((data, index) => {
+                const isLast = index === lastIndex;
+                timeSeriesTable += `<tr style="${isLast ? 'background: #e7f5e7; font-weight: bold;' : ''}">
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${data.time}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${isLast ? 'color: #28a745;' : ''}">${data.current.toFixed(2)}${isLast ? ' 🔵' : ''}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center; ${isLast ? 'color: #28a745;' : ''}">${data.temperature.toFixed(2)}${isLast ? ' 🔵' : ''}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 0.85em; color: #666;">${isLast ? 'I_max, T_max로 사용' : ''}</td>
+                </tr>`;
+            });
+            timeSeriesTable += '</tbody></table>';
+        }
+
         detailHTML += `
             <div class="history-detail-item">
-                <div class="history-detail-label">입력값</div>
-                <div class="history-detail-value">전류: ${current.toFixed(2)} A, 온도: ${temperature.toFixed(2)} ℃</div>
-            </div>
+                <div class="history-detail-label">입력값 (마지막 측정값)</div>
+                <div class="history-detail-value">I<sub>max</sub>: ${current.toFixed(2)} A, T<sub>max</sub>: ${temperature.toFixed(2)} ℃</div>
+            </div>`;
+
+        // 시계열 데이터가 있으면 표시
+        if (timeSeriesTable) {
+            detailHTML += `
+            <div class="history-detail-item">
+                <div class="history-detail-label">시계열 측정 데이터</div>
+                <div class="history-detail-value">
+                    ${timeSeriesTable}
+                    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                        <strong>민감도 계산:</strong> ${timeSeriesData && timeSeriesData.length >= 2 ? '마지막 2개 측정값 사용 (R = (T_n2 - T_n1) / (I_n2 - I_n1))' : '이전 측정값 없음'}
+                    </p>
+                </div>
+            </div>`;
+        }
+
+        detailHTML += `
             <div class="history-detail-item">
                 <div class="history-detail-label">계산 결과</div>
                 <div class="history-detail-value">
-                    <p>Icritic: ${iCritic.toFixed(2)} A</p>
-                    <p>전기적 스트레스 (ΔI): ${deltaI.toFixed(3)} - ${riskI.level} (${riskI.name})</p>
-                    <p>열적 스트레스 (ΔT): ${deltaT.toFixed(3)} - ${riskT.level} (${riskT.name})</p>
-                    <p>온도반응 민감도 (R): ${sensitivity.toFixed(3)} ℃/A - ${riskR.level} (${riskR.name})</p>
+                    <p>I<sub>critic</sub>: ${iCritic.toFixed(2)} A</p>
+                    <p>전기적 스트레스 (S<sub>I</sub> = I<sub>max</sub> / I<sub>critic</sub>): ${deltaI.toFixed(3)} - ${riskI.level} (${riskI.name})</p>
+                    <p>열적 스트레스 (S<sub>T</sub> = T<sub>max</sub> / T<sub>critic</sub>): ${deltaT.toFixed(3)} - ${riskT.level} (${riskT.name})</p>
+                    <p>온도반응 민감도 (R = (T<sub>n2</sub> - T<sub>n1</sub>) / (I<sub>n2</sub> - I<sub>n1</sub>)): ${sensitivity === null ? '-' : sensitivity.toFixed(3) + ' ℃/A'} - ${riskR.level} (${riskR.name})</p>
                 </div>
             </div>
             <div class="history-detail-item">
