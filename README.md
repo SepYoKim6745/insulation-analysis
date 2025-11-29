@@ -45,8 +45,8 @@
   - 발열민감도 점검지표 (5개 항목)
 - **가중치 기반 점검 결과**:
   - 점검지표별 점수 (0~10점)
-  - 총점 및 상태 평가 (주의/경계/위험)
-  - 관리방안 자동 제시
+  - 점검지표별 개별 상태 평가 및 관리방안 제시
+  - 체크리스트와 결과를 나란히 배치하여 한눈에 확인 가능
 - **전류-온도 관계 그래프**: 누적 데이터 시각화
 
 ### 2. 절연저항 패턴평가 (Degradation Pattern Classification)
@@ -123,11 +123,14 @@
 
 ### 상태 평가 기준
 
-| 총점 | 상태 | 관리방안 |
-|------|------|----------|
-| 1~2점 | 주의 | 점검주기 단축필요 |
-| 3~4점 | 경계 | 절연저항 패턴관리 필요 |
-| 5점 이상 | 위험 | 가동중지, 정밀점검 필요 |
+각 점검지표(전기적 스트레스, 열적 스트레스, 발열민감도)는 개별적으로 평가되며, 점수에 따라 다음과 같은 상태와 관리방안이 제시됩니다:
+
+| 점검지표 점수 | 상태 | 관리방안 |
+|--------------|------|----------|
+| 0점 | 미평가 | 체크리스트를 선택하면 적절한 관리방안이 표시됩니다. |
+| 1~2점 | 주의 | 점검주기 단축필요<br>• 현재 점검 주기보다 더 짧은 간격으로 절연성능을 모니터링하세요.<br>• 추세를 지속적으로 관찰하여 악화 여부를 확인하세요. |
+| 3~4점 | 경계 | 절연저항 패턴관리 필요<br>• 절연저항 값의 추이를 면밀히 분석하세요.<br>• 패턴 변화를 기록하고 이상 징후를 감지하세요.<br>• 필요시 전문가 검토를 권장합니다. |
+| 5점 이상 | 위험 | 가동중지, 정밀점검 필요<br>• **즉시 설비 가동을 중지**하세요.<br>• 전문가에 의한 정밀 점검을 실시하세요.<br>• 절연 상태를 면밀히 검사하고 필요시 부품을 교체하세요.<br>• 안전이 확인될 때까지 재가동을 금지하세요. |
 
 ---
 
@@ -206,15 +209,43 @@ function evaluateRiskR(sensitivity) {
 
 ---
 
-### 3. 체크리스트 - 가중치 기반 평가 ([script.js:460-635](script.js#L460-L635))
+### 3. 체크리스트 - 가중치 기반 평가 및 점검지표별 결과 표시
+
+#### 체크리스트 레이아웃 ([script.js:464-624](script.js#L464-L624))
 
 ```javascript
 // 체크리스트 HTML 생성 (L2 이상일 때만 표시)
 function generateChecklistHTML(riskI, riskT, riskR) {
-    // 각 카테고리별로 체크리스트 항목 생성
-    // data-category, data-weight 속성 부여
-}
+    // Grid 레이아웃으로 체크리스트와 결과를 나란히 배치
+    // grid-template-columns: 1fr 400px (왼쪽: 체크리스트, 오른쪽: 결과)
 
+    if (['L2', 'L3', 'L4'].includes(riskI.level)) {
+        html += `
+            <div style="display: grid; grid-template-columns: 1fr 400px; gap: 20px;">
+                <!-- 왼쪽: 체크리스트 항목들 -->
+                <div>
+                    <input type="checkbox" data-category="electric" data-weight="2">
+                    <label>운전 중 정격전류를 초과하는 구간이 존재하는가?</label>
+                    // ... 5개 항목
+                </div>
+
+                <!-- 오른쪽: 점수, 상태, 관리방안 -->
+                <div>
+                    <div id="electric-score">점수 표시</div>
+                    <div id="electric-status-result">상태 표시</div>
+                    <div id="electric-management-detail">관리방안 표시</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 열적 스트레스, 발열민감도도 동일한 구조
+}
+```
+
+#### 점수 계산 및 결과 업데이트 ([script.js:711-768](script.js#L711-L768))
+
+```javascript
 // 카테고리별 점수 계산
 function calculateCategoryScore(category) {
     const checkboxes = document.querySelectorAll(
@@ -227,19 +258,39 @@ function calculateCategoryScore(category) {
     return score;
 }
 
+// 체크리스트 결과 업데이트
+function updateChecklistResults() {
+    // 각 카테고리별 점수 계산
+    const electricScore = calculateCategoryScore('electric');
+    const thermalScore = calculateCategoryScore('thermal');
+    const sensitivityScore = calculateCategoryScore('sensitivity');
+
+    // 점수 표시 업데이트
+    document.getElementById('electric-score').textContent = electricScore;
+    document.getElementById('thermal-score').textContent = thermalScore;
+    document.getElementById('sensitivity-score').textContent = sensitivityScore;
+
+    // 각 카테고리별 평가 및 상태/관리방안 업데이트
+    updateCategoryResult('electric', electricScore, evaluateChecklistResult(electricScore));
+    updateCategoryResult('thermal', thermalScore, evaluateChecklistResult(thermalScore));
+    updateCategoryResult('sensitivity', sensitivityScore, evaluateChecklistResult(sensitivityScore));
+}
+
 // 점검 결과 평가
 function evaluateChecklistResult(score) {
-    if (score >= 1 && score <= 2) {
-        return { status: '주의', management: '점검주기 단축필요' };
+    if (score === 0) {
+        return { status: '미평가', management: '체크리스트를 선택하면...' };
+    } else if (score >= 1 && score <= 2) {
+        return { status: '주의', management: '점검주기 단축필요<br>• 현재 점검 주기보다...' };
     } else if (score >= 3 && score <= 4) {
-        return { status: '경계', management: '절연저항 패턴관리 필요' };
-    } else if (score >= 5) {
-        return { status: '위험', management: '가동중지, 정밀점검 필요' };
+        return { status: '경계', management: '절연저항 패턴관리 필요<br>• 절연저항 값의...' };
+    } else {
+        return { status: '위험', management: '가동중지, 정밀점검 필요<br>• 즉시 설비...' };
     }
 }
 ```
 
-**설명**: 위험도가 L2 이상인 지표에 대해 체크리스트를 표시하고, 사용자가 체크한 항목의 가중치를 합산하여 상태를 평가합니다. 실시간으로 점검지표별 점수와 총점, 관리방안을 업데이트합니다.
+**설명**: 위험도가 L2 이상인 지표에 대해 Grid 레이아웃으로 체크리스트와 결과를 나란히 배치합니다. 왼쪽에는 체크리스트 항목들이, 오른쪽에는 점수/상태/관리방안이 실시간으로 표시되어 한눈에 확인할 수 있습니다. 각 점검지표는 독립적으로 평가되며, 색상으로 구분된 그라데이션 박스로 시각적 구분이 명확합니다.
 
 ---
 
@@ -434,7 +485,10 @@ CV(%) = (σ / μ) × 100
 **결과 확인**
 - 위험도 평가 결과 (L1~L4)
 - 체크리스트 (L2 이상일 때만 표시)
-- 체크리스트 항목 선택 시 실시간 점수 업데이트
+- 체크리스트 항목 선택 시:
+  - 각 점검지표별 실시간 점수 업데이트 (0~10점)
+  - 점검지표별 개별 상태 및 관리방안 표시
+  - 체크리스트와 결과가 나란히 배치되어 한눈에 확인
 - 상세보기에서도 체크리스트 작성 가능
 
 ### 3. 절연저항 패턴평가
@@ -486,11 +540,21 @@ CV(%) = (σ / μ) × 100
 
 ## 주요 업데이트
 
+### v2.2 - 레이아웃 개선 및 총점 제거
+- **Grid 레이아웃 적용**: 체크리스트와 결과를 나란히 배치하여 공간 효율성 향상
+- **총점 제거**: 각 점검지표별 독립 평가에 집중
+- **시각적 개선**: 점검지표별 색상 구분 (전기적-보라, 열적-핑크, 발열민감도-파랑)
+- **한눈에 확인**: 체크리스트 왼쪽, 점수/상태/관리방안 오른쪽 배치
+
+### v2.1 - 점검지표별 개별 결과 표시
+- **점검지표별 독립 평가**: 전기적 스트레스, 열적 스트레스, 발열민감도 각각 개별 상태 및 관리방안 표시
+- **상세한 관리방안 제공**: 각 점검지표의 점수에 따라 구체적인 조치사항 제시
+- **UI 개선**: 점검지표별로 구분된 결과 표시 영역으로 가독성 향상
+
 ### v2.0 - 체크리스트 시스템 추가
 - 위험도 기반 점검지표 체크리스트 (L2 이상 자동 표시)
 - 가중치 시스템 도입 (1~3점)
 - 점검지표별 개별 점수 측정 (전기적/열적/발열민감도)
-- 총점 기반 상태 평가 (주의/경계/위험)
 - 관리방안 자동 제시
 - 상세보기에서도 체크리스트 작성 가능
 - 실시간 점수 업데이트
@@ -508,6 +572,7 @@ CV(%) = (σ / μ) × 100
 - 모든 데이터는 클라이언트 측(브라우저)에서 처리되며 서버 전송 없음
 - localStorage 용량 제한(일반적으로 5~10MB)으로 최대 100개 기록만 저장
 - 정확한 분석을 위해 측정 데이터의 품질과 일관성 확보 필요
+- 각 점검지표(전기적/열적/발열민감도)는 독립적으로 평가되어 개별 상태와 관리방안이 제공됨
 - 체크리스트 점수는 평가 결과와 별도로 관리되며, 사용자의 현장 점검 결과를 반영
 
 ---
