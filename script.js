@@ -241,7 +241,7 @@ function displayPerformanceResults(deltaI, deltaT, sensitivity, riskI, riskT, ri
     const tbody = document.getElementById('indicators-tbody');
     tbody.innerHTML = `
         <tr>
-            <td><strong>전기적 스트레스 (ΔI)</strong><br><small>ΔI = Imax / Icritic</small><br><small>Icritic = ${iCritic.toFixed(2)} A</small></td>
+            <td><strong>전기적 스트레스 S<sub>I</sub></strong><br><small>S<sub>I</sub> = I<sub>max</sub> / I<sub>critic</sub></small><br><small>I<sub>critic</sub> = ${iCritic.toFixed(2)} A</small></td>
             <td>${deltaI.toFixed(3)}</td>
             <td>
                 <div class="risk-badge-container">
@@ -252,7 +252,7 @@ function displayPerformanceResults(deltaI, deltaT, sensitivity, riskI, riskT, ri
             <td>${getRiskDescriptionI(riskI.level)}</td>
         </tr>
         <tr>
-            <td><strong>열적 스트레스 (ΔT)</strong><br><small>ΔT = Tmax / Tcritic</small><br><small>Tcritic = ${T_CRITIC} ℃</small></td>
+            <td><strong>열적 스트레스 S<sub>T</sub></strong><br><small>S<sub>T</sub> = T<sub>max</sub> / T<sub>critic</sub></small><br><small>T<sub>critic</sub> = ${T_CRITIC} ℃</small></td>
             <td>${deltaT.toFixed(3)}</td>
             <td>
                 <div class="risk-badge-container">
@@ -263,7 +263,7 @@ function displayPerformanceResults(deltaI, deltaT, sensitivity, riskI, riskT, ri
             <td>${getRiskDescriptionT(riskT.level)}</td>
         </tr>
         <tr>
-            <td><strong>온도반응 민감도 (R)</strong><br><small>R = ΔT / ΔI</small></td>
+            <td><strong>온도반응 민감도 (R)</strong><br><small>R = S<sub>T</sub> / S<sub>I</sub></small></td>
             <td>${sensitivity.toFixed(3)} ℃/A</td>
             <td>
                 <div class="risk-badge-container">
@@ -317,7 +317,7 @@ function generateChecklistHTML(riskI, riskT, riskR) {
     if (['L2', 'L3', 'L4'].includes(riskI.level)) {
         html += `
             <div class="checklist-category" style="margin-bottom: 20px;">
-                <h4 style="color: #667eea; margin-bottom: 10px;">전류 관련 체크리스트</h4>
+                <h4 style="color: #667eea; margin-bottom: 10px;">전기적 스트레스 점검지표</h4>
                 <div class="checklist-item" style="margin-bottom: 8px;">
                     <input type="checkbox" style="margin-right: 8px;">
                     <label>운전 중 정격전류를 초과하는 구간이 존재하는가?</label>
@@ -346,7 +346,7 @@ function generateChecklistHTML(riskI, riskT, riskR) {
     if (['L2', 'L3', 'L4'].includes(riskT.level)) {
         html += `
             <div class="checklist-category" style="margin-bottom: 20px;">
-                <h4 style="color: #667eea; margin-bottom: 10px;">온도 관련 체크리스트</h4>
+                <h4 style="color: #667eea; margin-bottom: 10px;">열적 스트레스 점검지표</h4>
                 <div class="checklist-item" style="margin-bottom: 8px;">
                     <input type="checkbox" style="margin-right: 8px;">
                     <label>전기배선 단자부가 70℃에 근접한 적이 있는가?</label>
@@ -375,7 +375,7 @@ function generateChecklistHTML(riskI, riskT, riskR) {
     if (['L2', 'L3', 'L4'].includes(riskR.level)) {
         html += `
             <div class="checklist-category" style="margin-bottom: 20px;">
-                <h4 style="color: #667eea; margin-bottom: 10px;">온도반응/열화 관련 체크리스트</h4>
+                <h4 style="color: #667eea; margin-bottom: 10px;">온도증가율 점검지표</h4>
                 <div class="checklist-item" style="margin-bottom: 8px;">
                     <input type="checkbox" style="margin-right: 8px;">
                     <label>동일조건 중 과거보다 온도가 빠르게 상승하는가?</label>
@@ -802,7 +802,7 @@ function displayDegradationResults(analysis, data) {
 
     resultContent.innerHTML = `
         <div class="result-item">
-            <h4>📊 패턴 특성 분석</h4>
+            <h4>📊 패턴특성</h4>
             <table style="width: 100%; border-collapse: collapse;">
                 <tr style="border-bottom: 1px solid #ddd;">
                     <td style="padding: 8px;"><strong>전체 감소폭</strong></td>
@@ -836,18 +836,18 @@ function displayDegradationResults(analysis, data) {
         </div>
 
         <div class="result-item">
-            <h4>🏷️ 최종 열화 패턴 유형</h4>
+            <h4>🏷️ 열화유형</h4>
             <p><span class="pattern-type ${patternClass}" style="font-size: 1.2em; padding: 8px 16px;">${analysis.pattern}</span></p>
             <p style="margin-top: 10px;"><strong>특성:</strong> ${analysis.characteristics}</p>
         </div>
 
         <div class="result-item">
-            <h4>📈 열화 단계 (Heat Stage)</h4>
+            <h4>📈 열화단계 (Heat Stage)</h4>
             <p style="font-size: 1.1em; color: #2c3e50;"><strong>${analysis.stage}</strong></p>
         </div>
 
         <div class="result-item">
-            <h4>🔧 관리 방향 (Management Action)</h4>
+            <h4>🔧 관리방향 (Management Action)</h4>
             <p style="font-size: 1.1em; color: #e74c3c;"><strong>${analysis.management}</strong></p>
         </div>
     `;
@@ -941,7 +941,7 @@ function loadHistory(filter = 'all') {
                     <div class="history-item-header">
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                             <input type="checkbox" class="history-checkbox-performance" data-id="${record.id}" style="width: 20px; height: 20px; cursor: pointer;">
-                            <span class="history-item-type">절연성능 평가</span>
+                            <span class="history-item-type">절연성능 경향평가</span>
                         </label>
                         <span class="history-item-date">${dateStr}</span>
                     </div>
@@ -969,7 +969,7 @@ function loadHistory(filter = 'all') {
                     <div class="history-item-header">
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                             <input type="checkbox" class="history-checkbox" data-id="${record.id}" style="width: 20px; height: 20px; cursor: pointer;">
-                            <span class="history-item-type degradation">절연저항 열화 패턴</span>
+                            <span class="history-item-type degradation">절연저항 평가</span>
                         </label>
                         <span class="history-item-date">${dateStr}</span>
                     </div>
@@ -1275,12 +1275,13 @@ function updatePerformanceChartWithData(data) {
         type: 'scatter',
         data: {
             datasets: [{
-                label: '전류-온도 관계',
+                label: '전류-온도 응답수준',
                 data: scatterData,
                 borderColor: 'rgb(102, 126, 234)',
                 backgroundColor: 'rgba(102, 126, 234, 0.5)',
                 pointRadius: 6,
                 pointHoverRadius: 8,
+                pointStyle: 'circle',
                 showLine: true,
                 tension: 0.4,
             }]
@@ -1295,10 +1296,13 @@ function updatePerformanceChartWithData(data) {
             plugins: {
                 legend: {
                     position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
                 },
                 title: {
-                    display: true,
-                    text: '전류-온도 관계 그래프'
+                    display: false
                 },
                 tooltip: {
                     callbacks: {
@@ -1364,11 +1368,11 @@ function updateDegradationChartWithData(data) {
                 data: resistanceData,
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                tension: 0.4,
-                fill: true,
                 pointRadius: 6,
                 pointHoverRadius: 8,
-                borderWidth: 2
+                pointStyle: 'circle',
+                showLine: true,
+                tension: 0.4,
             }]
         },
         options: {
@@ -1381,10 +1385,13 @@ function updateDegradationChartWithData(data) {
             plugins: {
                 legend: {
                     position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
                 },
                 title: {
-                    display: true,
-                    text: '절연저항 추이 (연도+월)'
+                    display: false,
                 },
                 tooltip: {
                     callbacks: {

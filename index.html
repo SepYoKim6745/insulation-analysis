@@ -13,29 +13,29 @@
         <header>
             <h1>절연성능 평가 시스템</h1>
             <div class="mode-selector">
-                <button class="mode-btn active" data-mode="performance">절연성능 평가</button>
-                <button class="mode-btn" data-mode="degradation">절연저항 열화 패턴 분류</button>
+                <button class="mode-btn active" data-mode="performance">절연성능 경향평가</button>
+                <button class="mode-btn" data-mode="degradation">절연저항 패턴평가</button>
             </div>
         </header>
 
         <!-- 절연성능 평가 모드 -->
         <div id="performance-mode" class="mode-content active">
-            <h2>절연성능 경향 평가</h2>
+            <h2>절연성능 경향평가</h2>
 
             <!-- 파일 업로드 섹션 (다량 데이터용) -->
             <div class="input-section">
-                <h3 style="color: #667eea; margin-bottom: 15px;">📁 파일 업로드 (다량 데이터)</h3>
+                <h3 style="color: #667eea; margin-bottom: 15px;">📁 다량 데이터(업로드)</h3>
                 <div class="input-group">
                     <label for="performance-file-input">Excel 또는 CSV 파일 업로드:</label>
                     <input type="file" id="performance-file-input" accept=".xlsx,.xls,.csv" style="padding: 10px;">
                     <small>Excel(.xlsx, .xls) 또는 CSV 파일을 선택하세요. 첫 번째 열: 전류(A), 두 번째 열: 온도(℃)</small>
                 </div>
-                <button id="upload-performance-file" class="calculate-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">파일 업로드 및 분석</button>
+                <button id="upload-performance-file" class="calculate-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">다량 데이터 분석</button>
             </div>
 
             <!-- 단일 데이터 입력 섹션 -->
             <div class="input-section" style="margin-top: 30px;">
-                <h3 style="color: #667eea; margin-bottom: 15px;">✏️ 단일 데이터 입력</h3>
+                <h3 style="color: #667eea; margin-bottom: 15px;">✏️ 단일 데이터(입력)</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
                     <div class="input-group">
                         <label for="single-current-input">전류 (I) [A]:</label>
@@ -50,7 +50,7 @@
             </div>
 
             <div id="performance-results" class="results-section" style="display: none;">
-                <h3>절연 열화 패턴 평가</h3>
+                <h3>절연성능 경향평가 결과</h3>
                 <div class="indicators-table">
                     <table>
                         <thead>
@@ -86,7 +86,7 @@
                 </div>
                 <!-- 그래프 섹션 -->
                 <div class="chart-section">
-                    <h4>전류-온도 관계 그래프</h4>
+                    <h4>전류-온도 경향그래프(누적)</h4>
                     <canvas id="performance-chart"></canvas>
                 </div>
             </div>
@@ -94,22 +94,22 @@
 
         <!-- 절연저항 열화 패턴 분류 모드 -->
         <div id="degradation-mode" class="mode-content">
-            <h2>절연저항 열화 패턴 분류</h2>
+            <h2>절연저항 패턴평가</h2>
 
             <!-- 파일 업로드 섹션 (다량 데이터용) -->
             <div class="input-section">
-                <h3 style="color: #667eea; margin-bottom: 15px;">📁 파일 업로드 (다량 데이터)</h3>
+                <h3 style="color: #667eea; margin-bottom: 15px;">📁 다량 데이터(업로드)</h3>
                 <div class="input-group">
                     <label for="file-input">Excel 또는 CSV 파일 업로드:</label>
                     <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="padding: 10px;">
                     <small>Excel(.xlsx, .xls) 또는 CSV 파일을 선택하세요. 첫 번째 열: 연도, 두 번째 열: 월, 세 번째 열: 절연저항(MΩ)</small>
                 </div>
-                <button id="upload-file" class="calculate-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">파일 업로드 및 분석</button>
+                <button id="upload-file" class="calculate-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">다량 데이터 분석</button>
             </div>
 
             <!-- 단일 데이터 입력 섹션 -->
             <div class="input-section" style="margin-top: 30px;">
-                <h3 style="color: #667eea; margin-bottom: 15px;">✏️ 단일 데이터 입력</h3>
+                <h3 style="color: #667eea; margin-bottom: 15px;">✏️ 단일 데이터(입력)</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
                     <div class="input-group">
                         <label for="single-year-input">연도 (YYYY):</label>
@@ -128,12 +128,12 @@
             </div>
 
             <div id="degradation-results" class="results-section" style="display: none;">
-                <h3>분류 결과</h3>
+                <h3>절연저항 패턴평가 결과</h3>
                 <div id="degradation-result-content" class="result-content">
                 </div>
             </div>
 
-            <!-- 절연저항 열화 패턴 분류 기록 목록 -->
+            <!-- 절연저항 패턴평가 기록 목록 -->
             <div class="history-section">
                 <div class="history-header">
                     <h3>평가 기록</h3>
@@ -148,7 +148,7 @@
                 </div>
                 <!-- 그래프 섹션 -->
                 <div class="chart-section">
-                    <h4>절연저항 추이 그래프</h4>
+                    <h4>전류-온도 경향 그래프(누적)</h4>
                     <canvas id="degradation-chart"></canvas>
                 </div>
             </div>
