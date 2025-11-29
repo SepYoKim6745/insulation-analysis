@@ -605,17 +605,77 @@ function generateChecklistHTML(riskI, riskT, riskR) {
                     </div>
                 </div>
 
-                <!-- 상태 표시 -->
-                <div id="checklist-status-result" style="text-align: center; font-size: 1.2em; font-weight: bold; padding: 20px; background: white; border-radius: 10px; margin-bottom: 20px; border: 3px solid #dee2e6;">
-                    체크리스트를 선택해주세요.
-                </div>
+                <!-- 점검지표별 상태 및 관리방안 -->
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+        `;
 
-                <!-- 관리방안 표시 -->
-                <div id="checklist-management-result" style="padding: 20px; background: white; border-radius: 10px; border-left: 5px solid #667eea;">
-                    <h5 style="color: #667eea; margin-bottom: 15px; font-size: 1.1em;">📌 관리방안</h5>
-                    <div id="management-detail" style="font-size: 1.05em; color: #495057; line-height: 1.8;">
-                        체크리스트를 선택하면 적절한 관리방안이 표시됩니다.
+        // 전기적 스트레스 결과 표시
+        if (['L2', 'L3', 'L4'].includes(riskI.level)) {
+            html += `
+                <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h5 style="color: #667eea; margin-bottom: 15px; font-size: 1.1em;">⚡ 전기적 스트레스 점검지표</h5>
+
+                    <!-- 상태 표시 -->
+                    <div id="electric-status-result" style="text-align: center; font-size: 1.1em; font-weight: bold; padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px; border: 2px solid #dee2e6;">
+                        체크리스트를 선택해주세요.
                     </div>
+
+                    <!-- 관리방안 표시 -->
+                    <div id="electric-management-result" style="padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #667eea;">
+                        <h6 style="color: #667eea; margin-bottom: 10px; font-size: 1em;">📌 관리방안</h6>
+                        <div id="electric-management-detail" style="font-size: 0.95em; color: #495057; line-height: 1.8;">
+                            체크리스트를 선택하면 적절한 관리방안이 표시됩니다.
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 열적 스트레스 결과 표시
+        if (['L2', 'L3', 'L4'].includes(riskT.level)) {
+            html += `
+                <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h5 style="color: #667eea; margin-bottom: 15px; font-size: 1.1em;">🔥 열적 스트레스 점검지표</h5>
+
+                    <!-- 상태 표시 -->
+                    <div id="thermal-status-result" style="text-align: center; font-size: 1.1em; font-weight: bold; padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px; border: 2px solid #dee2e6;">
+                        체크리스트를 선택해주세요.
+                    </div>
+
+                    <!-- 관리방안 표시 -->
+                    <div id="thermal-management-result" style="padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #667eea;">
+                        <h6 style="color: #667eea; margin-bottom: 10px; font-size: 1em;">📌 관리방안</h6>
+                        <div id="thermal-management-detail" style="font-size: 0.95em; color: #495057; line-height: 1.8;">
+                            체크리스트를 선택하면 적절한 관리방안이 표시됩니다.
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 발열민감도 결과 표시
+        if (['L2', 'L3', 'L4'].includes(riskR.level)) {
+            html += `
+                <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h5 style="color: #667eea; margin-bottom: 15px; font-size: 1.1em;">🌡️ 발열민감도 점검지표</h5>
+
+                    <!-- 상태 표시 -->
+                    <div id="sensitivity-status-result" style="text-align: center; font-size: 1.1em; font-weight: bold; padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px; border: 2px solid #dee2e6;">
+                        체크리스트를 선택해주세요.
+                    </div>
+
+                    <!-- 관리방안 표시 -->
+                    <div id="sensitivity-management-result" style="padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #667eea;">
+                        <h6 style="color: #667eea; margin-bottom: 10px; font-size: 1em;">📌 관리방안</h6>
+                        <div id="sensitivity-management-detail" style="font-size: 0.95em; color: #495057; line-height: 1.8;">
+                            체크리스트를 선택하면 적절한 관리방안이 표시됩니다.
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `
                 </div>
 
                 <!-- 기준 안내 -->
@@ -704,7 +764,6 @@ function updateChecklistResults() {
     console.log('updateChecklistResults 함수 호출');
 
     const totalScore = calculateChecklistTotalScore();
-    const result = evaluateChecklistResult(totalScore);
 
     // 카테고리별 점수 업데이트
     const electricScore = calculateCategoryScore('electric');
@@ -747,11 +806,29 @@ function updateChecklistResults() {
     console.log('checklist-total-score 엘리먼트:', scoreElement);
     if (scoreElement) {
         scoreElement.textContent = totalScore;
-        scoreElement.style.color = totalScore === 0 ? '#667eea' : result.statusColor;
+        const totalResult = evaluateChecklistResult(totalScore);
+        scoreElement.style.color = totalScore === 0 ? '#667eea' : totalResult.statusColor;
     }
 
-    // 상태 업데이트
-    const statusElement = document.getElementById('checklist-status-result');
+    // 전기적 스트레스 상태 및 관리방안 업데이트
+    const electricResult = evaluateChecklistResult(electricScore);
+    updateCategoryResult('electric', electricScore, electricResult);
+
+    // 열적 스트레스 상태 및 관리방안 업데이트
+    const thermalResult = evaluateChecklistResult(thermalScore);
+    updateCategoryResult('thermal', thermalScore, thermalResult);
+
+    // 발열민감도 상태 및 관리방안 업데이트
+    const sensitivityResult = evaluateChecklistResult(sensitivityScore);
+    updateCategoryResult('sensitivity', sensitivityScore, sensitivityResult);
+}
+
+// 카테고리별 결과 업데이트 함수
+function updateCategoryResult(category, score, result) {
+    const statusElement = document.getElementById(`${category}-status-result`);
+    const managementElement = document.getElementById(`${category}-management-detail`);
+    const managementContainer = document.getElementById(`${category}-management-result`);
+
     if (statusElement) {
         statusElement.textContent = result.status;
         statusElement.style.color = result.statusColor;
@@ -759,12 +836,10 @@ function updateChecklistResults() {
         statusElement.style.borderColor = result.statusBorderColor;
     }
 
-    // 관리방안 업데이트
-    const managementElement = document.getElementById('management-detail');
-    const managementContainer = document.getElementById('checklist-management-result');
     if (managementElement) {
         managementElement.innerHTML = result.management;
     }
+
     if (managementContainer) {
         managementContainer.style.borderLeftColor = result.managementBorderColor;
     }
